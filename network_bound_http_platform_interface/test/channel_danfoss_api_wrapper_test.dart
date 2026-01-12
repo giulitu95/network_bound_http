@@ -1,0 +1,157 @@
+import 'package:danfoss_api_wrapper_platform_interface/channel_danfoss_api_wrapper.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'utils.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('$ChannelDanfossApiWrapper -', () {
+    late List<MethodCall> log;
+    late ChannelDanfossApiWrapper api;
+
+    const syncChannelName = 'danfoss_api_wrapper/sync_channel';
+    const callServiceFunctionName = 'callService';
+    const requestParameterName = 'request';
+
+    setUp(() {
+      api = ChannelDanfossApiWrapper();
+      log = <MethodCall>[];
+    });
+
+    tearDown(() {
+      log.clear();
+    });
+
+    test('initialize always returns true', () async {
+      final ret = await api.initialize();
+      expect(ret, true);
+    });
+
+    test('callService returns platform output', () async {
+      const requestStr = 'this is the request string';
+      const responseStr = 'this is the response string';
+      const MethodChannel channel = MethodChannel(syncChannelName);
+      channel.setMockMethodCallHandler((MethodCall methodCall) async {
+        log.add(methodCall);
+        return responseStr;
+      });
+      final response = await api.callService(requestStr);
+      expect(
+        log,
+        <Matcher>[
+          isMethodCall(callServiceFunctionName, arguments: <String, String>{
+            requestParameterName: requestStr,
+          })
+        ],
+      );
+      expect(response, responseStr);
+    });
+
+    test('callService returns very long platform output', () async {
+      const requestStr = 'this is the request string';
+      const MethodChannel channel = MethodChannel(syncChannelName);
+      channel.setMockMethodCallHandler((MethodCall methodCall) async {
+        log.add(methodCall);
+        return veryLongResponseStr;
+      });
+      final response = await api.callService(requestStr);
+      expect(
+        log,
+        <Matcher>[
+          isMethodCall(callServiceFunctionName, arguments: <String, String>{
+            requestParameterName: requestStr,
+          })
+        ],
+      );
+      expect(response, veryLongResponseStr);
+    });
+
+    test('callService returns null', () async {
+      const requestStr = 'this is the request string';
+      const MethodChannel channel = MethodChannel(syncChannelName);
+      channel.setMockMethodCallHandler((MethodCall methodCall) async {
+        log.add(methodCall);
+        return null;
+      });
+      final response = await api.callService(requestStr);
+      expect(
+        log,
+        <Matcher>[
+          isMethodCall(callServiceFunctionName, arguments: <String, String>{
+            requestParameterName: requestStr,
+          })
+        ],
+      );
+      expect(response, isNull);
+    });
+
+    test('callService throws exception with platform excepion', () async {
+      const requestStr = 'this is the request string';
+      const MethodChannel channel = MethodChannel(syncChannelName);
+      channel.setMockMethodCallHandler((MethodCall methodCall) async {
+        log.add(methodCall);
+        throw Exception;
+      });
+      try {
+        await api.callService(requestStr);
+        fail('Future error not thrown');
+      } catch (e) {
+        expect(
+          log,
+          <Matcher>[
+            isMethodCall(callServiceFunctionName, arguments: <String, String>{
+              requestParameterName: requestStr,
+            })
+          ],
+        );
+        expect(e, isInstanceOf<Exception>());
+      }
+    });
+
+    test('callbackStream', () async {
+      const responseStr = 'this is the response string';
+      MethodChannel(api.callbackChannel.name)
+          .setMockMethodCallHandler((MethodCall methodCall) async {
+        switch (methodCall.method) {
+          case 'listen':
+            await ServicesBinding.instance.defaultBinaryMessenger
+                .handlePlatformMessage(
+              api.callbackChannel.name,
+              api.callbackChannel.codec.encodeSuccessEnvelope(responseStr),
+              (_) {},
+            );
+            break;
+          case 'cancel':
+          default:
+            return null;
+        }
+      });
+      final response = await api.callbackStream.first;
+      expect(response, responseStr);
+    });
+
+    test('callbackStream with very long response', () async {
+      MethodChannel(api.callbackChannel.name)
+          .setMockMethodCallHandler((MethodCall methodCall) async {
+        switch (methodCall.method) {
+          case 'listen':
+            await ServicesBinding.instance.defaultBinaryMessenger
+                .handlePlatformMessage(
+              api.callbackChannel.name,
+              api.callbackChannel.codec
+                  .encodeSuccessEnvelope(veryLongResponseStr),
+              (_) {},
+            );
+            break;
+          case 'cancel':
+          default:
+            return null;
+        }
+      });
+      final response = await api.callbackStream.first;
+      expect(response, veryLongResponseStr);
+    });
+  });
+}

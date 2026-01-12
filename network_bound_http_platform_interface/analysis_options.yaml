@@ -1,0 +1,5 @@
+# This file configures the analyzer, which statically analyzes Dart code to
+# check for errors, warnings, and lints.
+
+# Recommend linter rules for flutter
+include: package:flutter_lints/flutter.yaml

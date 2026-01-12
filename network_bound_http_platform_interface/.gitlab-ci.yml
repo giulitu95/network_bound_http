@@ -1,0 +1,35 @@
+format: 
+  stage: test
+  tags:
+    - shell-flutter
+  script:
+    - flutter format --set-exit-if-changed -o none lib test
+
+test:
+  stage: test
+  tags:
+    - windows-shell-flutter
+  before_script:      
+    - dart pub global activate junitreport
+    - dart pub global activate cobertura
+  script:
+    - flutter test --machine --coverage | tojunit -o report.xml
+    - perl $env:LCOV_HOME\bin\genhtml coverage\lcov.info -o coverage
+    - cobertura convert
+  coverage: '/lines\.*: \d+\.\d+\%/'
+  artifacts:
+    name: coverage
+    paths:
+      - coverage
+    reports:
+      junit: report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage\cobertura.xml
+
+code_quality:
+  stage: test
+  tags:
+    - shell-flutter
+  script:
+    - flutter analyze .
