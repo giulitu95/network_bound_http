@@ -1,5 +1,5 @@
-import 'package:danfoss_api_wrapper_platform_interface/channel_danfoss_api_wrapper.dart';
-import 'package:danfoss_api_wrapper_platform_interface/danfoss_api_wrapper_platform_interface.dart';
+import 'package:danfoss_api_wrapper_platform_interface/method_channel_network_bound_http.dart';
+import 'package:danfoss_api_wrapper_platform_interface/network_bound_http_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';

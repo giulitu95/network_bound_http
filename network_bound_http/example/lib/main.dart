@@ -1,63 +1,73 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'dart:async';
-
-import 'package:flutter/services.dart';
 import 'package:network_bound_http/network_bound_http.dart';
 
+
 void main() {
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
-
+class MyApp extends StatelessWidget {
   @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  String _platformVersion = 'Unknown';
-  final _networkBoundHttpPlugin = NetworkBoundHttp();
-
-  @override
-  void initState() {
-    super.initState();
-    initPlatformState();
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        appBar: AppBar(title: Text('NetworkBoundHttp Example')),
+        body: _DownloadWidget(),
+      ),
+    );
   }
+}
 
-  // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initPlatformState() async {
-    String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    // We also handle the message potentially returning null.
-    try {
-      platformVersion =
-          await _networkBoundHttpPlugin.getPlatformVersion() ?? 'Unknown platform version';
-    } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
-    }
+class _DownloadWidget extends StatefulWidget {
+  const _DownloadWidget();
 
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
-    if (!mounted) return;
+  @override
+  _DownloadWidgetState createState() => _DownloadWidgetState();
+}
 
-    setState(() {
-      _platformVersion = platformVersion;
+class _DownloadWidgetState extends State<_DownloadWidget> {
+  double progress = 0;
+  String? filePath;
+  String? error;
+
+  void startDownload() {
+    final stream = NetworkBoundHttp.download(
+      url: "https://example.com/file.bin",
+      network: NetworkType.cellular,
+    );
+
+
+    stream.listen((event) {
+      if (event is DownloadProgress) {
+        setState(() {
+          progress = event.percent;
+        });
+      } else if (event is DownloadComplete) {
+        setState(() {
+          filePath = event.path;
+        });
+      } else if (event is DownloadError) {
+        setState(() {
+          error = event.message;
+        });
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Plugin example app'),
+    return Column(
+      children: [
+        ElevatedButton(
+          onPressed: startDownload,
+          child: Text('Start Download'),
         ),
-        body: Center(
-          child: Text('Running on: $_platformVersion\n'),
-        ),
-      ),
+        if (progress > 0 && progress < 1)
+          Text("Progress: ${(progress * 100).toStringAsFixed(1)}%"),
+        if (filePath != null) Text("Saved at $filePath"),
+        if (error != null) Text("Error: $error"),
+      ],
     );
   }
 }

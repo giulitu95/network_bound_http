@@ -161,6 +161,20 @@ packages:
       relative: true
     source: path
     version: "0.0.1"
+  network_bound_http_android:
+    dependency: transitive
+    description:
+      path: "../../network_bound_http_android"
+      relative: true
+    source: path
+    version: "0.0.1"
+  network_bound_http_platform_interface:
+    dependency: transitive
+    description:
+      path: "../../network_bound_http_platform_interface"
+      relative: true
+    source: path
+    version: "1.0.0"
   path:
     dependency: transitive
     description:

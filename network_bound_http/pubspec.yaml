@@ -11,6 +11,10 @@ dependencies:
   flutter:
     sdk: flutter
   plugin_platform_interface: ^2.0.2
+  network_bound_http_platform_interface:
+    path: ../network_bound_http_platform_interface
+  network_bound_http_android:
+    path: ../network_bound_http_android
 
 dev_dependencies:
   flutter_test:
