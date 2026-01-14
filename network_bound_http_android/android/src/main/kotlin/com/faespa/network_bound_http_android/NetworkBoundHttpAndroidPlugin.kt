@@ -1,12 +1,13 @@
 package com.faespa.network_bound_http_android
 
 import android.content.Context
-import com.faespa.network_bound_http_android.models.NativeRequest
+import com.faespa.network_bound_http_android.HttpRequest
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.*
+import kotlin.collections.emptyMap
 import kotlin.collections.get
 
 class NetworkBoundHttpAndroidPlugin :
@@ -21,10 +22,6 @@ class NetworkBoundHttpAndroidPlugin :
     private var eventSink: EventChannel.EventSink? = null
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    // -------------------------
-    // FlutterPlugin
-    // -------------------------
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
@@ -49,10 +46,6 @@ class NetworkBoundHttpAndroidPlugin :
         scope.cancel()
     }
 
-    // -------------------------
-    // EventChannel.StreamHandler
-    // -------------------------
-
     override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
         eventSink = events
     }
@@ -61,29 +54,15 @@ class NetworkBoundHttpAndroidPlugin :
         eventSink = null
     }
 
-    // -------------------------
-    // MethodChannel handler
-    // -------------------------
-
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
-            "startDownload" -> startDownload(call, result)
+            "sendRequest" -> sendRequest(call, result)
             else -> result.notImplemented()
         }
     }
 
-    // -------------------------
-    // Download logic
-    // -------------------------
-
-    private fun startDownload(call: MethodCall, result: MethodChannel.Result) {
-        val args = call.arguments as Map<*, *>
-
-        val url = args["url"] as String
-        val networkType = NetworkType.valueOf(args["network"] as String)
-        val timeoutMs = (args["timeoutMs"] as Int?) ?: 15000
-        val outputPath = args["outputPath"] as String
-
+    private fun sendRequest(call: MethodCall, result: MethodChannel.Result) {
+        val request = HttpRequest.from(call)
         val sink = eventSink
         if (sink == null) {
             result.error("NO_LISTENER", "No EventChannel listener", null)
@@ -95,24 +74,14 @@ class NetworkBoundHttpAndroidPlugin :
         scope.launch {
             try {
                 val selector = NetworkSelector(context)
-                val network = selector.acquire(networkType, timeoutMs)
-
-                val request = NativeRequest(
-                    url = url,
-                    method = "GET",
-                    headers = emptyMap(),
-                    body = null,
-                    timeoutMs = timeoutMs,
-                    networkType = networkType,
-                )
-
+                val network = selector.acquire(network = request.network, timeout = request.timeout)
                 NativeHttpClient().execute(network, request, sink)
-
             } catch (e: Exception) {
                 sink.success(
                     mapOf(
+                        "id" to request.id,
                         "type" to "error",
-                        "message" to (e.message ?: "Unknown error")
+                        "message" to ("Exception while acquiring network: ${e.message}")
                     )
                 )
             }

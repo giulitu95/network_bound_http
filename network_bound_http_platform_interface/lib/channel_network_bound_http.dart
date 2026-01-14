@@ -22,11 +22,12 @@ class ChannelNetworkBoundHttp extends NetworkBoundHttpPlatform {
   @override
   Stream<NetworkBoundHttpEvent> sendHttpRequest({
     required String uri,
+    required String outputPath,
     String method = "GET",
     Map<String, String>? headers,
     Uint8List? body,
     Duration? timeout,
-    NetworkType? network,
+    NetworkType network = NetworkType.any,
   }) {
 
     late StreamController<NetworkBoundHttpEvent> controller;
@@ -39,8 +40,9 @@ class ChannelNetworkBoundHttp extends NetworkBoundHttpPlatform {
           'method': method,
           if (headers != null) 'headers': headers,
           if (body != null) 'body': body,
-          if (timeout != null) 'timeout': timeout,
-          if (network != null) 'network': network.name.toUpperCase(),
+          if (timeout != null) 'timeout': timeout.inMilliseconds,
+          'network': network.name.toUpperCase(),
+          'outputPath': outputPath
         });
       },
       onCancel: () {

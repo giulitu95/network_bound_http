@@ -31,9 +31,10 @@ abstract class NetworkBoundHttpPlatform extends PlatformInterface {
   Stream<NetworkBoundHttpEvent> sendHttpRequest({
     required String uri,
     required String method,
+    required String outputPath,
     Map<String, String>? headers,
     Uint8List? body,
     Duration? timeout,
-    NetworkType? network,
+    NetworkType network,
   });
 }
