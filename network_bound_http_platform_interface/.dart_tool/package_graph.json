@@ -9,7 +9,6 @@
       "dependencies": [
         "flutter",
         "plugin_platform_interface",
-        "streams_channel2",
         "uuid"
       ],
       "devDependencies": [
@@ -49,13 +48,6 @@
         "crypto",
         "fixnum",
         "meta"
-      ]
-    },
-    {
-      "name": "streams_channel2",
-      "version": "1.0.0+1",
-      "dependencies": [
-        "flutter"
       ]
     },
     {

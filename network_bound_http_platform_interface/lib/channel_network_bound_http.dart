@@ -4,14 +4,13 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:network_bound_http_platform_interface/types.dart';
-import 'package:streams_channel2/streams_channel2.dart';
 import 'package:uuid/uuid.dart';
 
 import 'network_bound_http_platform_interface.dart';
 
 class ChannelNetworkBoundHttp extends NetworkBoundHttpPlatform {
 
-  static final StreamsChannel _streamChannel =  StreamsChannel('network_bound_http/events');
+  static const EventChannel _eventChannel =  EventChannel('network_bound_http/events');
   static const MethodChannel _methodChannel = MethodChannel('network_bound_http/methods');
 
 
@@ -24,16 +23,49 @@ class ChannelNetworkBoundHttp extends NetworkBoundHttpPlatform {
     required String uri,
     required String outputPath,
     String method = "GET",
-    Map<String, String>? headers,
+    Map<dynamic, dynamic>? headers,
     Uint8List? body,
     Duration? timeout,
     NetworkType network = NetworkType.any,
   }) {
-
     late StreamController<NetworkBoundHttpEvent> controller;
+    late StreamSubscription subscription;
+
     final id = const Uuid().v4();
-    controller = StreamController(
-      onListen: () {
+    controller = StreamController<NetworkBoundHttpEvent>(
+      onListen: (){
+        _eventChannel
+            .receiveBroadcastStream()
+            .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+            .where((e) => e['id'] == id)
+            .map<NetworkBoundHttpEvent>((e) {
+              switch(e["type"]){
+                case "progress":
+                  return ProgressHttpEvent(
+                    id: e['id'],
+                    downloaded: e['downloaded'],
+                    total: e['total'], 
+                  );
+                case "complete":
+                  return CompleteHttpEvent(
+                      id: e["id"],
+                      statusCode: e["statusCode"],
+                      headers: e["headers"],
+                      outputPath: e["outputFile"]);
+                case "error":
+                  return ErrorHttpEvent(
+                      id: e["id"],
+                      message: e["message"]);
+                default:
+                  //TODO change it
+                  return  ErrorHttpEvent(
+                      id: e["id"],
+                      message: e["message"]);
+              }
+
+        })
+            .listen(controller.add, onError: controller.addError, onDone: controller.close);
+
         _methodChannel.invokeMethod("sendRequest", {
           'id': id,
           'uri': uri,
@@ -42,23 +74,14 @@ class ChannelNetworkBoundHttp extends NetworkBoundHttpPlatform {
           if (body != null) 'body': body,
           if (timeout != null) 'timeout': timeout.inMilliseconds,
           'network': network.name.toUpperCase(),
-          'outputPath': outputPath
+          'outputPath': outputPath,
         });
       },
       onCancel: () {
-        // TODO
+        controller.close();
       },
     );
 
-    // we return a stream of events tagged only with 'id'
-    final stream = _streamChannel.receiveBroadcastStream({'id': id}).map((event){
-      return NetworkBoundHttpEvent(
-        downloaded: event['downloaded'],
-        total: event['total']
-      );
-    });
-
-    controller.addStream(stream);
-    return stream;
+    return controller.stream;
   }
 }

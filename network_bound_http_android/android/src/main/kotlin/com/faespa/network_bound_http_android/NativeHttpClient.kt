@@ -1,92 +1,147 @@
 package com.faespa.network_bound_http_android
 
 
+import android.content.Context
+import android.net.ConnectivityManager
 import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.util.Log
-import com.faespa.network_bound_http_android.HttpRequest
 import io.flutter.plugin.common.EventChannel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
-class NativeHttpClient {
+import kotlin.compareTo
+import kotlin.io.inputStream
+import kotlin.io.outputStream
 
-    suspend fun execute(
-        network: Network?,
-        request: HttpRequest,
-        eventSink: EventChannel.EventSink
-    ) = withContext(Dispatchers.IO) {
+class NativeHttpClient(private val context: Context, private val scope: CoroutineScope) {
+    private suspend fun emit(
+        eventSink: EventChannel.EventSink,
+        payload: Map<String, Any?>
+    ) = withContext(Dispatchers.Main) {
+        eventSink.success(payload)
+    }
 
-        try {
-            val uri = URL(request.uri)
-            val connection = if (network != null) {
-                network.openConnection(uri)
-            } else {
-                uri.openConnection()
-            } as HttpURLConnection
+    private suspend fun sendRequest(connection: HttpURLConnection, request: HttpRequest, eventSink: EventChannel.EventSink){
+        connection.requestMethod = request.method
+        connection.connectTimeout = request.timeout
+        connection.readTimeout = request.timeout
+        request.headers.forEach { (k, v) ->
+            connection.setRequestProperty(k, v)
+        }
+        if (request.body != null) {
+            connection.doOutput = true
+            connection.outputStream.use { it.write(request.body) }
+        }
+        connection.connect()
+        Log.d("CUSTOM-LOGS", "NativeHttpClient: 3")
+        val status = connection.responseCode
+        Log.d("CUSTOM-LOGS", "NativeHttpClient: 4")
 
-            connection.requestMethod = request.method
-            connection.connectTimeout = request.timeout
-            connection.readTimeout = request.timeout
+        val stream: InputStream? = if (status >= 400) connection.errorStream else connection.inputStream
 
-            request.headers.forEach { (k, v) ->
-                connection.setRequestProperty(k, v)
-            }
-
-            if (request.body != null) {
-                connection.doOutput = true
-                connection.outputStream.use { it.write(request.body) }
-            }
-
-            val status = connection.responseCode
-            val stream: InputStream? = if (status >= 400) connection.errorStream else connection.inputStream
-
-            val file = File(request.outputPath)
-            stream?.use {
-                input -> FileOutputStream(file).use {
-                    output ->
-                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                        var bytesRead: Int
-                        var downloaded: Long = 0
-                        val total = connection.contentLengthLong
-                        while (input.read(buffer).also { bytesRead = it } != -1) {
-                            output.write(buffer, 0, bytesRead)
-                            downloaded += bytesRead
-                            eventSink.success(
-                                mapOf(
-                                    "id" to "id",
-                                    "type" to "progress",
-                                    "downloaded" to downloaded,
-                                    "total" to total
-                                )
+        Log.d("CUSTOM-LOGS", "NativeHttpClient: status: $status")
+        val file = File(request.outputPath)
+        stream?.use {
+            input -> FileOutputStream(file).use {
+                output ->
+                    Log.d("CUSTOM-LOGS", "NativeHttpClient: new stream event")
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var bytesRead: Int
+                    var downloaded: Long = 0
+                    val total = connection.contentLengthLong
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        output.write(buffer, 0, bytesRead)
+                        downloaded += bytesRead
+                        Log.d("CUSTOM-LOGS", "NativeHttpClient: Sending progress")
+                        emit(
+                            eventSink,
+                            mapOf(
+                                "id" to request.id,
+                                "type" to "progress",
+                                "downloaded" to downloaded,
+                                "total" to total
                             )
-                        }
-                }
-            }
-
-            val headersAsList: List<String> =
-                connection.headerFields
-                    .filterKeys { it != null } // status line (key = null)
-                    .flatMap { (key, values) ->
-                        values.map { value -> "$key: $value" }
+                        )
+                        Log.d("CUSTOM-LOGS", "NativeHttpClient: Progress sent")
                     }
+            }
+        }
+        Log.d("CUSTOM-LOGS", "NativeHttpClient: All progresses sent")
+        val headersMap: Map<String, String> = connection.headerFields
+                .filterKeys { it != null } // rimuove la status line
+                .map { (key, values) ->
+                    key!! to values.joinToString(", ")
+                }
+                .toMap()
 
-            eventSink.success(
+            emit(
+                eventSink,
                 mapOf(
                     "id" to request.id,
                     "type" to "complete",
                     "statusCode" to status,
-                    "headers" to headersAsList,
+                    "headers" to headersMap,
                     "outputFile" to request.outputPath
                 )
             )
+            Log.d("CUSTOM-LOGS", "Done!")
+    }
+    suspend fun execute(
+        request: HttpRequest,
+        eventSink: EventChannel.EventSink
+    ) = withContext(Dispatchers.IO) {
+
+        Log.d("CUSTOM-LOGS", "NativeHttpClient: Sending request")
+        try {
+            val uri = URL(request.uri)
+            if (request.network != CustomNetwork.ANY) {
+                Log.d("CUSTOM-LOGS", "NativeHttpClient: network NOT null")
+                val connManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                val netRequest = NetworkRequest.Builder()
+                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    .addTransportType(
+                        when (request.network) {
+                            CustomNetwork.WIFI -> NetworkCapabilities.TRANSPORT_WIFI
+                            CustomNetwork.CELLULAR -> NetworkCapabilities.TRANSPORT_CELLULAR
+                            else -> NetworkCapabilities.TRANSPORT_WIFI // it should never reach here
+                        }
+                    )
+                    .build()
+                val callback = object : ConnectivityManager.NetworkCallback() {
+                    override fun onAvailable(network: Network) {
+                        scope.launch{
+                            Log.d("CUSTOM-LOGS", "NetworkSelector: network is available");
+                            val connection = network.openConnection(uri) as HttpURLConnection
+                            connection.requestMethod = request.method
+                            sendRequest(connection = connection, request = request, eventSink = eventSink)
+                        }
+                    }
+
+                    override fun onUnavailable() {
+                        Log.d("CUSTOM-LOGS", "NetworkSelector: network is not available");
+                    }
+                }
+                connManager.requestNetwork(netRequest, callback)
+            } else {
+                Log.d("CUSTOM-LOGS", "NativeHttpClient: network is null")
+                val connection = uri.openConnection() as HttpURLConnection
+                sendRequest(connection = connection, request = request, eventSink = eventSink)
+
+            }
+
 
         } catch (e: Exception) {
             Log.e("NativeHttpClient", "Error", e)
-            eventSink.success(
+            emit(
+                eventSink,
                 mapOf(
                     "id" to request.id,
                     "type" to "error",

@@ -146,12 +146,6 @@
       "languageVersion": "3.3"
     },
     {
-      "name": "streams_channel2",
-      "rootUri": "file:///C:/Users/gturri/AppData/Local/Pub/Cache/hosted/pub.dev/streams_channel2-1.0.0+1",
-      "packageUri": "lib/",
-      "languageVersion": "2.12"
-    },
-    {
       "name": "string_scanner",
       "rootUri": "file:///C:/Users/gturri/AppData/Local/Pub/Cache/hosted/pub.dev/string_scanner-1.4.1",
       "packageUri": "lib/",

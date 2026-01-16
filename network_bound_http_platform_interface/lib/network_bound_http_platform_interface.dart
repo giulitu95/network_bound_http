@@ -32,9 +32,9 @@ abstract class NetworkBoundHttpPlatform extends PlatformInterface {
     required String uri,
     required String method,
     required String outputPath,
-    Map<String, String>? headers,
+    required NetworkType network,
+    Map<dynamic, dynamic>? headers,
     Uint8List? body,
     Duration? timeout,
-    NetworkType network,
   });
 }

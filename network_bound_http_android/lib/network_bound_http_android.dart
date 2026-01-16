@@ -17,11 +17,12 @@ class NetworkBoundHttpAndroid extends NetworkBoundHttpPlatform {
   @override
   Stream<NetworkBoundHttpEvent> sendHttpRequest({
     required String uri,
-    String method = "GET",
-    Map<String, String>? headers,
+    required String method,
+    required String outputPath,
+    required NetworkType network,
+    Map<dynamic, dynamic>? headers,
     Uint8List? body,
     Duration? timeout,
-    NetworkType? network,
   }) {
     return ChannelNetworkBoundHttp().sendHttpRequest(
       uri: uri,
@@ -30,6 +31,7 @@ class NetworkBoundHttpAndroid extends NetworkBoundHttpPlatform {
       body: body,
       timeout: timeout,
       network: network,
+      outputPath: outputPath
     );
   }
 }
