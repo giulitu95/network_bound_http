@@ -54,7 +54,7 @@ class _MyAppState extends State<MyApp> {
                 uri: "https://httpbin.org/get",
                 method: "GET",
                 outputPath: "${dir.path}/tmp",
-                network: NetworkType.cellular).listen((data) async {
+                network: NetworkType.any).listen((data) async {
                   print("--------------");
                   if(data is CompleteHttpEvent){
                     final file = File(data.outputPath);
@@ -65,8 +65,7 @@ class _MyAppState extends State<MyApp> {
                   }
 
             }, onError: (e){
-                  print("error:");
-                  print(e);
+                  print("error: ${e.code}");
             }, onDone: (){
                   print("done");
             });

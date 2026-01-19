@@ -1,16 +1,17 @@
 package com.faespa.network_bound_http_android
 
 import android.content.Context
-import android.net.Network
 import android.util.Log
-import com.faespa.network_bound_http_android.HttpRequest
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-import kotlinx.coroutines.*
-import kotlin.collections.emptyMap
-import kotlin.collections.get
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class NetworkBoundHttpAndroidPlugin :
     FlutterPlugin,
@@ -62,7 +63,8 @@ class NetworkBoundHttpAndroidPlugin :
             else -> result.notImplemented()
         }
     }
-    private suspend fun emit(
+
+    private suspend fun emitToFlutter(
         eventSink: EventChannel.EventSink,
         payload: Map<String, Any?>
     ) = withContext(Dispatchers.Main) {
@@ -70,6 +72,7 @@ class NetworkBoundHttpAndroidPlugin :
     }
 
     private fun sendRequest(call: MethodCall, result: MethodChannel.Result) {
+        Log.d("CUSTOM-LOGS", "sending request 1")
         val request = HttpRequest.from(call)
         val sink = eventSink
         if (sink == null) {
@@ -80,21 +83,12 @@ class NetworkBoundHttpAndroidPlugin :
         result.success(null) // The response is handled through an evnet channel
 
         scope.launch {
+            Log.d("CUSTOM-LOGS", "sending request 2")
             try {
-                val selector = NetworkSelector(context)
-                var network: Network?;
-                if(request.network != CustomNetwork.ANY) {
-                    network =
-                        selector.acquire(network = request.network, timeout = request.timeout)
-                } else {
-                    network = null;
-                }
-                Log.d("CUSTOM-LOGS", "NetworkBoundHttpAndroidPlugin: Sending request")
-                NativeHttpClient(context = context, scope=scope).execute(request,  sink)
-                Log.d("CUSTOM-LOGS", "Executed")
+                NativeHttpClient(context = context, eventSink = sink).send(request)
             } catch (e: Exception) {
                 Log.d("CUSTOM-LOGS", "error while acquiring network")
-                emit(
+                emitToFlutter(
                     sink,
                     mapOf(
                         "id" to request.id,
