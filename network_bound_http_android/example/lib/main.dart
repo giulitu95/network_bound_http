@@ -54,7 +54,7 @@ class _MyAppState extends State<MyApp> {
                 uri: "https://httpbin.org/get",
                 method: "GET",
                 outputPath: "${dir.path}/tmp",
-                network: NetworkType.any).listen((data) async {
+                network: NetworkType.standard).listen((data) async {
                   print("--------------");
                   if(data is CompleteHttpEvent){
                     final file = File(data.outputPath);

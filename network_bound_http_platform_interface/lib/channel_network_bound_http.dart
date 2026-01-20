@@ -26,7 +26,7 @@ class ChannelNetworkBoundHttp extends NetworkBoundHttpPlatform {
     Map<dynamic, dynamic>? headers,
     Uint8List? body,
     Duration? timeout,
-    NetworkType network = NetworkType.any,
+    NetworkType network = NetworkType.standard,
   }) {
     late StreamController<NetworkBoundHttpEvent> controller;
     late StreamSubscription subscription;

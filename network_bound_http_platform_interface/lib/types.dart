@@ -1,5 +1,5 @@
 enum NetworkType {
-  any,
+  standard,
   wifi,
   cellular,
 }
