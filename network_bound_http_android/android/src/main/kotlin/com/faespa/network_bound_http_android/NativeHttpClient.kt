@@ -3,8 +3,6 @@ package com.faespa.network_bound_http_android
 
 import android.content.Context
 import android.net.Network
-import io.flutter.plugin.common.EventChannel
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -13,26 +11,10 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
-
 class NativeHttpClient(
     private val context: Context,
-    private val eventSink: EventChannel.EventSink,
-    private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main
+    private val channelHelper: ChannelHelper
 ) {
-    suspend fun emitToFlutter(
-        payload: Map<String, Any?>
-    ) = withContext(mainDispatcher) {
-        eventSink.success(payload)
-    }
-
-    suspend fun emitErrorToFlutter(
-        errorCode: String,
-        errorMessage: String?,
-        errorDetails: String?
-    ) = withContext(mainDispatcher) {
-        eventSink.error(errorCode, errorMessage, errorDetails)
-    }
-
 
     suspend fun sendRequest(
         network: Network,
@@ -66,7 +48,7 @@ class NativeHttpClient(
                 while (input.read(buffer).also { bytesRead = it } != -1) {
                     output.write(buffer, 0, bytesRead)
                     downloaded += bytesRead
-                    emitToFlutter(
+                    channelHelper.emitToFlutter(
                         mapOf(
                             "id" to request.id,
                             "type" to "progress",
@@ -87,7 +69,7 @@ class NativeHttpClient(
                 }
                 .toMap()
 
-        emitToFlutter(
+        channelHelper.emitToFlutter(
             mapOf(
                 "id" to request.id,
                 "type" to "complete",
@@ -108,7 +90,7 @@ class NativeHttpClient(
             val network = networkSelector.acquireNetwork(request.timeout.toLong())
             sendRequest(network, request)
         } catch (e: Exception) {
-            emitErrorToFlutter(
+            channelHelper.emitErrorToFlutter(
                 "${e::class.simpleName}",
                 e.message,
                 ""

@@ -19,7 +19,7 @@ data class HttpRequest(
                 id = call.argument("id")!!,
                 uri = call.argument("uri")!!,
                 method = call.argument("method")!!,
-                headers = call.argument("headers") ?: emptyMap<String, String>(),
+                headers = call.argument("headers") ?: emptyMap(),
                 body = call.argument("body"),
                 timeout = call.argument("timeout") ?: 30000,
                 network = CustomNetwork.valueOf(

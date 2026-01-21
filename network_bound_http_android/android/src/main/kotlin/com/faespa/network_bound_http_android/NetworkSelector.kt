@@ -82,7 +82,7 @@ class DefaultNetworkSelector(
                         if (network != null) {
                             cont.resume(network)
                         } else {
-                            cont.resumeWithException(kotlin.IllegalStateException("No network found"))
+                            cont.resumeWithException(kotlin.IllegalStateException("No default network found"))
 
                         }
                     }

@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkRequest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -19,6 +20,7 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -69,7 +71,7 @@ class NetworkSelectorTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun `cellular network corrdectly acquired`() = runTest {
+    fun `cellular network not available`() = runTest {
         val customNetwork = CustomNetwork.CELLULAR
         val callbackCaptor =
             argumentCaptor<ConnectivityManager.NetworkCallback>()
@@ -108,4 +110,59 @@ class NetworkSelectorTest {
 
 
     }
+
+    @Test
+    fun `retrieves standard network`() = runTest {
+        whenever(fakeContext.getSystemService(Context.CONNECTIVITY_SERVICE)).thenReturn(connManager)
+        whenever(connManager.activeNetwork).thenReturn(fakeNetwork)
+
+        val selector = DefaultNetworkSelector(fakeContext, CustomNetwork.STANDARD)
+        val network = selector.acquireNetwork()
+
+        assertEquals(network, fakeNetwork)
+    }
+
+    @Test
+    fun `getting no available standard network`() = runTest {
+        whenever(fakeContext.getSystemService(Context.CONNECTIVITY_SERVICE)).thenReturn(connManager)
+        whenever(connManager.activeNetwork).thenReturn(null)
+
+        val selector = DefaultNetworkSelector(fakeContext, CustomNetwork.STANDARD)
+        val exception = assertFailsWith<IllegalStateException> {
+            selector.acquireNetwork()
+        }
+        assertEquals("No default network found", exception.message)
+
+    }
+
+    @Test
+    fun `random exception thrown trying acquire network`() = runTest {
+        val thrownException = IllegalStateException()
+        whenever(fakeContext.getSystemService(Context.CONNECTIVITY_SERVICE)).thenThrow(
+            thrownException
+        )
+
+        val selector = DefaultNetworkSelector(fakeContext, CustomNetwork.STANDARD)
+        assertFailsWith<IllegalStateException> {
+            selector.acquireNetwork()
+        }
+
+    }
+
+    @Test
+    fun `acquireNetwork times out if network never available`() = runTest {
+        val customNetwork = CustomNetwork.CELLULAR
+        whenever(fakeContext.getSystemService(Context.CONNECTIVITY_SERVICE)).thenReturn(connManager)
+        whenever(fakeNetworkReqFactory.create(customNetwork)).thenReturn(netRequest)
+
+        doNothing().whenever(connManager)
+            .requestNetwork(any(), any<ConnectivityManager.NetworkCallback>())
+        val selector =
+            DefaultNetworkSelector(fakeContext, CustomNetwork.CELLULAR, fakeNetworkReqFactory)
+        assertFailsWith<TimeoutCancellationException> {
+            selector.acquireNetwork(timeout = 500)
+        }
+
+    }
+
 }
