@@ -6,7 +6,6 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.TestScope
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doNothing
 import org.mockito.kotlin.eq
@@ -33,7 +32,6 @@ internal class NetworkBoundHttpAndroidPluginTest {
     private val fakeClient = mock<NativeHttpClient>()
     val fakeResult = mock<MethodChannel.Result>()
     private val testDispatcher = StandardTestDispatcher()
-    private val testScope = TestScope(testDispatcher)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
