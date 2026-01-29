@@ -56,14 +56,12 @@ class NativeHttpClient(
                             "total" to total
                         )
                     )
-                    // Log.d("CUSTOM-LOGS", "NativeHttpClient: Progress sent")
                 }
             }
         }
-        // Log.d("CUSTOM-LOGS", "NativeHttpClient: All progresses sent")
         val headersMap: Map<String, String> =
             connection.headerFields
-                .filterKeys { it != null } // rimuove la status line
+                .filterKeys { it != null }
                 .map { (key, values) ->
                     key!! to values.joinToString(", ")
                 }
@@ -78,7 +76,6 @@ class NativeHttpClient(
                 "outputFile" to request.outputPath
             )
         )
-        // Log.d("CUSTOM-LOGS", "Done!")
     }
 
 
