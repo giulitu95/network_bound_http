@@ -1,8 +1,11 @@
+<<<<<<< plat-interface
 library;
 
 import 'dart:typed_data';
 
 import 'package:network_bound_http_platform_interface/events/events.dart';
+=======
+>>>>>>> local
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'channel_network_bound_http.dart';
@@ -27,6 +30,7 @@ abstract class NetworkBoundHttpPlatform extends PlatformInterface {
     _instance = instance;
   }
 
+<<<<<<< plat-interface
   Stream<NetworkBoundHttpEvent> sendHttpRequest({
     required String uri,
     required String method,
@@ -36,4 +40,9 @@ abstract class NetworkBoundHttpPlatform extends PlatformInterface {
     Uint8List? body,
     Duration? timeout,
   });
+=======
+  Stream<Map<String, dynamic>> get callbackStream;
+
+  Future<String?> sendRequest({required Map<String, dynamic> request});
+>>>>>>> local
 }

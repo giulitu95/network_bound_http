@@ -15,6 +15,7 @@ dependencies:
     path: ../network_bound_http_platform_interface
   network_bound_http_android:
     path: ../network_bound_http_android
+  uuid: ^4.5.2
 
 dev_dependencies:
   flutter_test:
@@ -25,6 +26,5 @@ flutter:
   plugin:
     platforms:
       android:
-        package: com.example.network_bound_http
-        pluginClass: NetworkBoundHttpPlugin
+        default_package: network_bound_http_android
 

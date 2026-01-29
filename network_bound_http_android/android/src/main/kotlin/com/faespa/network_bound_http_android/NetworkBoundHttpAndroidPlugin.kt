@@ -39,12 +39,12 @@ class NetworkBoundHttpAndroidPlugin :
 
         methodChannel = MethodChannel(
             binding.binaryMessenger,
-            "network_bound_http/methods"
+            "network_bound_http/request_channel_android"
         )
 
         eventChannel = EventChannel(
             binding.binaryMessenger,
-            "network_bound_http/events"
+            "network_bound_http/events_channel_android"
         )
 
         methodChannel.setMethodCallHandler(this)

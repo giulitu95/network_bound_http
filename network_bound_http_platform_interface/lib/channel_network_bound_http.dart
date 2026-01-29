@@ -1,3 +1,4 @@
+<<<<<<< plat-interface
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
@@ -7,6 +8,10 @@ import 'package:uuid/uuid.dart';
 import 'events/event_factory.dart';
 import 'events/events.dart';
 import 'network_bound_http_platform_interface.dart';
+=======
+import 'package:flutter/services.dart';
+import 'package:network_bound_http_platform_interface/network_bound_http_platform_interface.dart';
+>>>>>>> local
 
 /// Platform-specific implementation of [NetworkBoundHttpPlatform] based on
 /// Flutter [MethodChannel]s and [EventChannel]s.
@@ -19,6 +24,7 @@ import 'network_bound_http_platform_interface.dart';
 /// Each invocation of [sendHttpRequest] generates a unique request identifier
 /// (`id`) used to filter events coming from a shared broadcast event channel.
 class ChannelNetworkBoundHttp extends NetworkBoundHttpPlatform {
+<<<<<<< plat-interface
   /// EventChannel used to receive HTTP-related events from the native layer.
   ///
   /// This channel is a broadcast stream shared across multiple concurrent
@@ -41,6 +47,16 @@ class ChannelNetworkBoundHttp extends NetworkBoundHttpPlatform {
   /// mock implementations during unit tests.
   @visibleForTesting
   EventFactory eventFactory = EventFactory();
+=======
+  static const EventChannel eventChannel = EventChannel(
+    'network_bound_http/events_channel',
+  );
+  static const MethodChannel requestChannel = MethodChannel(
+    'network_bound_http/request_channel',
+  );
+
+  Stream<Map<String, dynamic>>? _eventsStream;
+>>>>>>> local
 
   /// Sends an HTTP request through the native layer and returns a stream of
   /// [NetworkBoundHttpEvent] describing its execution.
@@ -68,6 +84,7 @@ class ChannelNetworkBoundHttp extends NetworkBoundHttpPlatform {
   ///
   /// Returns a [Stream] of [NetworkBoundHttpEvent] associated with this request.
   @override
+<<<<<<< plat-interface
   Stream<NetworkBoundHttpEvent> sendHttpRequest({
     required String uri,
     required String outputPath,
@@ -120,5 +137,21 @@ class ChannelNetworkBoundHttp extends NetworkBoundHttpPlatform {
     );
 
     return controller.stream;
+=======
+  Stream<Map<String, dynamic>> get callbackStream {
+    _eventsStream ??= eventChannel.receiveBroadcastStream().map(
+          (event) => event,
+        );
+    return _eventsStream!;
+  }
+
+  @override
+  Future<String?> sendRequest({required Map<String, dynamic> request}) async {
+    try {
+      return requestChannel.invokeMethod<String?>('sendRequest', request);
+    } catch (e) {
+      return Future.error(e);
+    }
+>>>>>>> local
   }
 }
