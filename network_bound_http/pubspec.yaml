@@ -16,6 +16,8 @@ dependencies:
   network_bound_http_android:
     path: ../network_bound_http_android
   uuid: ^4.5.2
+  path_provider: ^2.1.5
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:

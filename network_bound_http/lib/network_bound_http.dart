@@ -1,2 +1,1 @@
-/// Facade API pubblica
-class NetworkBoundHttp {}
+export 'src/network_bound_client.dart';

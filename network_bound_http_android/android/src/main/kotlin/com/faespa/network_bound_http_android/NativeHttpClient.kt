@@ -24,7 +24,6 @@ class NativeHttpClient(
         val connection = network.openConnection(URL(request.uri)) as HttpURLConnection
         connection.requestMethod = request.method
         connection.connectTimeout = request.timeout
-        connection.readTimeout = request.timeout
         request.headers.forEach { (k, v) ->
             connection.setRequestProperty(k, v)
         }
