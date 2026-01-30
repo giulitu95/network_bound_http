@@ -35,33 +35,7 @@ class NativeHttpClient(
         connection.connect()
         val status = connection.responseCode
 
-<<<<<<< plat-interface
-        val stream: InputStream? =
-            if (status >= 400) connection.errorStream else connection.inputStream
 
-        val file = File(request.outputPath)
-        stream?.use { input ->
-            FileOutputStream(file).use { output ->
-                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                var bytesRead: Int
-                var downloaded: Long = 0
-                val total = connection.contentLengthLong
-                while (input.read(buffer).also { bytesRead = it } != -1) {
-                    output.write(buffer, 0, bytesRead)
-                    downloaded += bytesRead
-                    channelHelper.emitToFlutter(
-                        mapOf(
-                            "id" to request.id,
-                            "type" to "progress",
-                            "downloaded" to downloaded,
-                            "total" to total
-                        )
-                    )
-                }
-            }
-        }
-=======
->>>>>>> local
         val headersMap: Map<String, String> =
             connection.headerFields
                 .filterKeys { it != null }
@@ -80,8 +54,7 @@ class NativeHttpClient(
                 "contentLength" to connection.contentLengthLong,
             )
         )
-<<<<<<< plat-interface
-=======
+
 
         val stream: InputStream? =
             if (status >= 400) connection.errorStream else connection.inputStream
@@ -110,7 +83,6 @@ class NativeHttpClient(
         // Log.d("CUSTOM-LOGS", "NativeHttpClient: All progresses sent")
 
         // Log.d("CUSTOM-LOGS", "Done!")
->>>>>>> local
     }
 
 
