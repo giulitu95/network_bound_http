@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:network_bound_http_platform_interface/network_bound_http_platform_interface.dart';
 import 'package:uuid/uuid.dart';
@@ -8,10 +9,17 @@ import 'package:uuid/uuid.dart';
 enum NetworkType { standard, wifi, cellular }
 
 class NetworkBoundClient {
+  @visibleForTesting
   static const defaultConnectionTimeout = Duration(seconds: 4);
+
+  @visibleForTesting
   static const defaultNetwork = NetworkType.standard;
 
-  NetworkBoundHttpPlatform get platform => NetworkBoundHttpPlatform.instance;
+  @visibleForTesting
+  NetworkBoundHttpPlatform platform = NetworkBoundHttpPlatform.instance;
+
+  @visibleForTesting
+  Uuid uuid = const Uuid();
 
   Future<NetworkBoundResponse> get({
     required File outputFile,
@@ -19,7 +27,7 @@ class NetworkBoundClient {
     Map<String, dynamic>? headers,
     Duration connectionTimeout = defaultConnectionTimeout,
     NetworkType network = defaultNetwork,
-  }) => _fetchToFile(
+  }) => fetchToFile(
     outputFile: outputFile,
     uri: uri,
     method: "GET",
@@ -35,7 +43,7 @@ class NetworkBoundClient {
     Uint8List? body,
     Duration connectionTimeout = defaultConnectionTimeout,
     NetworkType network = defaultNetwork,
-  }) => _fetchToFile(
+  }) => fetchToFile(
     outputFile: outputFile,
     uri: uri,
     method: "POST",
@@ -67,12 +75,19 @@ class NetworkBoundClient {
               ? nativeException.message!
               : "Operation not permitted",
         );
+      case "MalformedURLException":
+        return FormatException(
+          nativeException.message != null
+              ? nativeException.message!
+              : "Invalid uri",
+        );
       default:
         return nativeException;
     }
   }
 
-  Future<NetworkBoundResponse> _fetchToFile({
+  @visibleForTesting
+  Future<NetworkBoundResponse> fetchToFile({
     required File outputFile,
     required String uri,
     required String method,
@@ -83,7 +98,7 @@ class NetworkBoundClient {
   }) async {
     final progressController = StreamController<double>.broadcast();
     final completer = Completer<NetworkBoundResponse>();
-    final id = const Uuid().v4();
+    final id = uuid.v4();
 
     platform.callbackStream
         .map((e) => Map<String, dynamic>.from(e))
