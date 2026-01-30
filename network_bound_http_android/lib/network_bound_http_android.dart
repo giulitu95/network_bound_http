@@ -1,37 +1,34 @@
-
-import 'dart:typed_data';
-
-import 'package:network_bound_http_platform_interface/channel_network_bound_http.dart';
+import 'package:flutter/services.dart';
 import 'package:network_bound_http_platform_interface/network_bound_http_platform_interface.dart';
-import 'package:network_bound_http_platform_interface/types.dart';
-
 
 class NetworkBoundHttpAndroid extends NetworkBoundHttpPlatform {
-  NetworkBoundHttpAndroid() : super();
-
-  /// During registration, set instance as default
   static void registerWith() {
     NetworkBoundHttpPlatform.instance = NetworkBoundHttpAndroid();
   }
 
+  static const EventChannel eventChannel = EventChannel(
+    'network_bound_http/events_channel_android',
+  );
+  static const MethodChannel requestChannel = MethodChannel(
+    'network_bound_http/request_channel_android',
+  );
+
+  Stream<Map<String, dynamic>>? _eventsStream;
+
   @override
-  Stream<NetworkBoundHttpEvent> sendHttpRequest({
-    required String uri,
-    required String method,
-    required String outputPath,
-    required NetworkType network,
-    Map<dynamic, dynamic>? headers,
-    Uint8List? body,
-    Duration? timeout,
-  }) {
-    return ChannelNetworkBoundHttp().sendHttpRequest(
-      uri: uri,
-      method: method,
-      headers: headers,
-      body: body,
-      timeout: timeout,
-      network: network,
-      outputPath: outputPath
+  Stream<Map<String, dynamic>> get callbackStream {
+    _eventsStream ??= eventChannel.receiveBroadcastStream().map(
+      (event) => Map<String, dynamic>.from(event),
     );
+    return _eventsStream!;
+  }
+
+  @override
+  Future<String?> sendRequest({required Map<String, dynamic> request}) async {
+    try {
+      return requestChannel.invokeMethod<String?>('sendRequest', request);
+    } catch (e) {
+      return Future.error(e);
+    }
   }
 }

@@ -104,7 +104,7 @@ class NativeHttpClientTest {
 
         Assertions.assertTrue(successEvents.isNotEmpty())
         Assertions.assertFalse(successEvents.find { e -> e["type"] == "progress" }.isNullOrEmpty())
-        Assertions.assertFalse(successEvents.find { e -> e["type"] == "complete" && e["statusCode"] == 200 }
+        Assertions.assertFalse(successEvents.find { e -> e["type"] == "status" && e["statusCode"] == 200 }
             .isNullOrEmpty())
         Assertions.assertTrue(errorEvents.isEmpty())
     }
@@ -157,7 +157,7 @@ class NativeHttpClientTest {
 
         Assertions.assertTrue(successEvents.isNotEmpty())
         Assertions.assertFalse(successEvents.find { e -> e["type"] == "progress" }.isNullOrEmpty())
-        Assertions.assertFalse(successEvents.find { e -> e["type"] == "complete" && e["statusCode"] == 400 }
+        Assertions.assertFalse(successEvents.find { e -> e["type"] == "status" && e["statusCode"] == 400 }
             .isNullOrEmpty())
         Assertions.assertTrue(errorEvents.isEmpty())
     }
