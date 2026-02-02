@@ -1,0 +1,69 @@
+name: Network Bound Http
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  flutter-format:                  
+    runs-on: ubuntu-latest  
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+            channel: stable
+            cache: true
+
+      - run: flutter clean
+        working-directory: network_bound_http
+
+      - run: flutter pub get
+        working-directory: network_bound_http
+          
+      - run: dart format --set-exit-if-changed -o none lib test
+        working-directory: network_bound_http
+
+  flutter-analyze:                  
+    runs-on: ubuntu-latest  
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+        
+      - run: flutter clean
+        working-directory: network_bound_http
+      
+      - run: flutter pub get
+        working-directory: network_bound_http
+
+      - run: flutter analyze
+        working-directory: network_bound_http
+
+  flutter-test:                  
+    runs-on: ubuntu-latest  
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      
+      - run: flutter clean
+        working-directory: network_bound_http
+
+      - run: flutter pub get
+        working-directory: network_bound_http
+          
+      - run: flutter test --machine --coverage | tojunit -o report.xml
+        working-directory: network_bound_http
+
+      - run: dart run ./scripts/coverage_ci.dart
+        working-directory: network_bound_http

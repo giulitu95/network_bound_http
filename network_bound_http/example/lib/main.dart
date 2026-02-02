@@ -65,12 +65,12 @@ class _DownloadWidgetState extends State<_DownloadWidget> {
           await file.delete();
         },
         onError: (e) async {
-          print("error");
+          // print("error");
           await file.delete();
         },
       );
     } catch (e) {
-      print("tmp");
+      // print("tmp");
     }
   }
 
@@ -100,12 +100,12 @@ class _DownloadWidgetState extends State<_DownloadWidget> {
           await file.delete();
         },
         onError: (e) async {
-          print("error");
+          // print("error");
           await file.delete();
         },
       );
     } catch (e) {
-      print("tmp");
+      // print("tmp");
     }
   }
 
