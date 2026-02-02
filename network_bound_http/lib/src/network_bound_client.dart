@@ -48,6 +48,7 @@ class NetworkBoundClient {
     uri: uri,
     method: "POST",
     body: body,
+    headers: headers,
     connectionTimeout: connectionTimeout,
     network: network,
   );
