@@ -10,6 +10,45 @@ import 'package:uuid/uuid.dart';
 
 import 'network_bound_http_platform_mock.dart';
 
+class NetworkBoundClientMock extends NetworkBoundClient {
+  File? outputFileInput;
+  String? uriInput;
+  String? methodInput;
+  Map<String, dynamic>? headersInput;
+  Uint8List? bodyInput;
+  Duration? connectionTimeoutInput;
+  NetworkType? networkTypeInput;
+
+  bool isFetchToFileCalled = false;
+  NetworkBoundResponse? fetchToFileOutput;
+
+  @override
+  Future<NetworkBoundResponse> fetchToFile({
+    required File outputFile,
+    required String uri,
+    required String method,
+    Map<String, dynamic>? headers,
+    Uint8List? body,
+    required Duration connectionTimeout,
+    required NetworkType network,
+  }) async {
+    isFetchToFileCalled = true;
+    expect(outputFileInput!.path, equals(outputFile.path));
+    expect(uriInput, equals(uri));
+    expect(methodInput, equals(method));
+    expect(
+      const DeepCollectionEquality.unordered().equals(headersInput, headers),
+      isTrue,
+    );
+    expect(bodyInput, equals(body));
+    expect(connectionTimeoutInput, equals(connectionTimeout));
+    expect(networkTypeInput, equals(network));
+
+    assert(fetchToFileOutput != null);
+    return fetchToFileOutput!;
+  }
+}
+
 class UuidMock extends Fake implements Uuid {
   String? v4Uuid;
 
@@ -43,6 +82,7 @@ void main() {
   final connectionTimeout = Duration(seconds: 2);
   final network = NetworkType.standard;
   final statusCode = 200;
+  final body = Uint8List.fromList([1, 2, 3]);
 
   setUp(() {
     client.platform = platformMock;
@@ -398,6 +438,67 @@ void main() {
         exception = e;
       }
       expect(exception, isA<FormatException>());
+    });
+  });
+  group("GET/ POST  request", () {
+    late NetworkBoundClientMock mock;
+    setUp(() {
+      mock = NetworkBoundClientMock();
+    });
+    test("GET request calls fetchToFile", () async {
+      mock.outputFileInput = File(outputFile);
+      mock.uriInput = uri;
+      mock.methodInput = "GET";
+      mock.headersInput = requestHeaders;
+      mock.connectionTimeoutInput = connectionTimeout;
+      mock.networkTypeInput = network;
+
+      final mockedRes = NetworkBoundResponse(
+        statusCode: 200,
+        contentLength: contentLength,
+        progressStream: Stream.empty(),
+      );
+
+      mock.fetchToFileOutput = mockedRes;
+      final res = await mock.get(
+        outputFile: File(outputFile),
+        uri: uri,
+        headers: requestHeaders,
+        connectionTimeout: connectionTimeout,
+        network: network,
+      );
+
+      expect(mock.isFetchToFileCalled, isTrue);
+      expect(res, equals(mockedRes));
+    });
+
+    test("POST request calls fetchToFile", () async {
+      NetworkBoundClientMock mock = NetworkBoundClientMock();
+      mock.outputFileInput = File(outputFile);
+      mock.uriInput = uri;
+      mock.methodInput = "POST";
+      mock.headersInput = requestHeaders;
+      mock.bodyInput = body;
+      mock.connectionTimeoutInput = connectionTimeout;
+      mock.networkTypeInput = network;
+
+      final mockedRes = NetworkBoundResponse(
+        statusCode: 200,
+        contentLength: contentLength,
+        progressStream: Stream.empty(),
+      );
+      mock.fetchToFileOutput = mockedRes;
+      final res = await mock.post(
+        outputFile: File(outputFile),
+        uri: uri,
+        headers: requestHeaders,
+        connectionTimeout: connectionTimeout,
+        network: network,
+        body: body,
+      );
+
+      expect(mock.isFetchToFileCalled, isTrue);
+      expect(res, equals(mockedRes));
     });
   });
 }
