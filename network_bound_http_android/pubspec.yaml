@@ -39,4 +39,5 @@ flutter:
       android:
         package: com.faespa.network_bound_http_android
         pluginClass: NetworkBoundHttpAndroidPlugin
+        dartPluginClass: NetworkBoundHttpAndroid
 

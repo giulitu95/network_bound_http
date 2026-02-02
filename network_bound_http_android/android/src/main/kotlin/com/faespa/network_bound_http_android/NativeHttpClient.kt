@@ -24,7 +24,6 @@ class NativeHttpClient(
         val connection = network.openConnection(URL(request.uri)) as HttpURLConnection
         connection.requestMethod = request.method
         connection.connectTimeout = request.timeout
-        connection.readTimeout = request.timeout
         request.headers.forEach { (k, v) ->
             connection.setRequestProperty(k, v)
         }
@@ -35,6 +34,27 @@ class NativeHttpClient(
         connection.connect()
         val status = connection.responseCode
 
+
+        val headersMap: Map<String, String> =
+            connection.headerFields
+                .filterKeys { it != null }
+                .map { (key, values) ->
+                    key!! to values.joinToString(", ")
+                }
+                .toMap()
+
+        channelHelper.emitToFlutter(
+            mapOf(
+                "id" to request.id,
+                "type" to "status",
+                "statusCode" to status,
+                "headers" to headersMap,
+                "outputFile" to request.outputPath,
+                "contentLength" to connection.contentLengthLong,
+            )
+        )
+
+
         val stream: InputStream? =
             if (status >= 400) connection.errorStream else connection.inputStream
 
@@ -44,7 +64,6 @@ class NativeHttpClient(
                 val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                 var bytesRead: Int
                 var downloaded: Long = 0
-                val total = connection.contentLengthLong
                 while (input.read(buffer).also { bytesRead = it } != -1) {
                     output.write(buffer, 0, bytesRead)
                     downloaded += bytesRead
@@ -52,8 +71,8 @@ class NativeHttpClient(
                         mapOf(
                             "id" to request.id,
                             "type" to "progress",
+                            "contentLength" to connection.contentLengthLong,
                             "downloaded" to downloaded,
-                            "total" to total
                         )
                     )
                     // Log.d("CUSTOM-LOGS", "NativeHttpClient: Progress sent")
@@ -61,23 +80,7 @@ class NativeHttpClient(
             }
         }
         // Log.d("CUSTOM-LOGS", "NativeHttpClient: All progresses sent")
-        val headersMap: Map<String, String> =
-            connection.headerFields
-                .filterKeys { it != null } // rimuove la status line
-                .map { (key, values) ->
-                    key!! to values.joinToString(", ")
-                }
-                .toMap()
 
-        channelHelper.emitToFlutter(
-            mapOf(
-                "id" to request.id,
-                "type" to "complete",
-                "statusCode" to status,
-                "headers" to headersMap,
-                "outputFile" to request.outputPath
-            )
-        )
         // Log.d("CUSTOM-LOGS", "Done!")
     }
 
