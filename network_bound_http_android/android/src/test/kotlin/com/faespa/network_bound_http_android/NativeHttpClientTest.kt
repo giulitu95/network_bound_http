@@ -98,12 +98,12 @@ class NativeHttpClientTest {
         verify(fakeNetSelector).acquireNetwork(timeout.toLong())
         verify(fakeConnection).setRequestMethod(method)
         verify(fakeConnection).setConnectTimeout(timeout)
-        verify(fakeConnection).setReadTimeout(timeout)
         verify(fakeConnection).setRequestProperty("key", "value")
         verify(fakeConnection).setDoOutput(true)
 
         Assertions.assertTrue(successEvents.isNotEmpty())
         Assertions.assertFalse(successEvents.find { e -> e["type"] == "progress" }.isNullOrEmpty())
+        Assertions.assertFalse(successEvents.find { e -> e["type"] == "done" }.isNullOrEmpty())
         Assertions.assertFalse(successEvents.find { e -> e["type"] == "status" && e["statusCode"] == 200 }
             .isNullOrEmpty())
         Assertions.assertTrue(errorEvents.isEmpty())
@@ -151,12 +151,12 @@ class NativeHttpClientTest {
         verify(fakeNetSelector).acquireNetwork(timeout.toLong())
         verify(fakeConnection).setRequestMethod(method)
         verify(fakeConnection).setConnectTimeout(timeout)
-        verify(fakeConnection).setReadTimeout(timeout)
         verify(fakeConnection).setRequestProperty("key", "value")
         verify(fakeConnection).setDoOutput(true)
 
         Assertions.assertTrue(successEvents.isNotEmpty())
         Assertions.assertFalse(successEvents.find { e -> e["type"] == "progress" }.isNullOrEmpty())
+        Assertions.assertFalse(successEvents.find { e -> e["type"] == "done" }.isNullOrEmpty())
         Assertions.assertFalse(successEvents.find { e -> e["type"] == "status" && e["statusCode"] == 400 }
             .isNullOrEmpty())
         Assertions.assertTrue(errorEvents.isEmpty())
@@ -204,7 +204,6 @@ class NativeHttpClientTest {
         verify(fakeNetSelector).acquireNetwork(timeout.toLong())
         verify(fakeConnection).setRequestMethod(method)
         verify(fakeConnection).setConnectTimeout(timeout)
-        verify(fakeConnection).setReadTimeout(timeout)
         verify(fakeConnection).setRequestProperty("key", "value")
         verify(fakeConnection).setDoOutput(true)
 

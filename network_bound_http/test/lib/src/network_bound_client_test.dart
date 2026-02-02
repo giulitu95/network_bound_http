@@ -102,7 +102,7 @@ void main() {
           "outputFile": outputFile,
           "contentLength": contentLength,
         },
-        for (final d in [30, 60, 90])
+        for (final d in [30, 60, 90, 120])
           {
             "id": requestId,
             "type": progressEventName,
@@ -111,7 +111,7 @@ void main() {
           },
         {
           "id": requestId,
-          "type": progressEventName,
+          "type": "done",
           "contentLength": contentLength,
           "downloaded": contentLength,
         },
@@ -140,13 +140,18 @@ void main() {
       expect(response.statusCode, equals(statusCode));
       expect(response.contentLength, equals(contentLength));
 
-      final progressSteps = <double>[];
+      final progressSteps = <ProgressStep>[];
       await for (final newProgress in response.progressStream) {
         progressSteps.add(newProgress);
       }
 
       expect(
-        DeepCollectionEquality().equals(progressSteps, [0.25, 0.5, 0.75, 1]),
+        DeepCollectionEquality().equals(progressSteps, [
+          ProgressStep(downloaded: 30, contentLength: 120),
+          ProgressStep(downloaded: 60, contentLength: 120),
+          ProgressStep(downloaded: 90, contentLength: 120),
+          ProgressStep(downloaded: 120, contentLength: 120),
+        ]),
         isTrue,
       );
     });
@@ -187,7 +192,9 @@ void main() {
         for (final e in events) {
           yield e;
         }
-        throw PlatformException(code: "TimeoutCancellationException");
+        throw PlatformException(
+          code: "$requestId::TimeoutCancellationException",
+        );
       }
 
       platformMock.callbackStreamOutput = mockStream();
@@ -202,7 +209,7 @@ void main() {
       expect(response.statusCode, equals(statusCode));
       expect(response.contentLength, equals(contentLength));
 
-      final progressSteps = <double>[];
+      final progressSteps = <ProgressStep>[];
       Object? exception;
       try {
         await for (final newProgress in response.progressStream) {
@@ -212,7 +219,12 @@ void main() {
         exception = e;
       }
 
-      expect(DeepCollectionEquality().equals(progressSteps, [0.25]), isTrue);
+      expect(
+        DeepCollectionEquality().equals(progressSteps, [
+          ProgressStep(downloaded: 30, contentLength: 120),
+        ]),
+        isTrue,
+      );
       expect(exception, isA<TimeoutException>());
     });
 
@@ -221,7 +233,7 @@ void main() {
         for (final e in events) {
           yield e;
         }
-        throw PlatformException(code: "SocketException");
+        throw PlatformException(code: "$requestId::SocketException");
       }
 
       platformMock.callbackStreamOutput = mockStream();
@@ -236,7 +248,7 @@ void main() {
       expect(response.statusCode, equals(statusCode));
       expect(response.contentLength, equals(contentLength));
 
-      final progressSteps = <double>[];
+      final progressSteps = <ProgressStep>[];
       Object? exception;
       try {
         await for (final newProgress in response.progressStream) {
@@ -246,7 +258,12 @@ void main() {
         exception = e;
       }
 
-      expect(DeepCollectionEquality().equals(progressSteps, [0.25]), isTrue);
+      expect(
+        DeepCollectionEquality().equals(progressSteps, [
+          ProgressStep(downloaded: 30, contentLength: 120),
+        ]),
+        isTrue,
+      );
       expect(exception, isA<SocketException>());
     });
     test("UnknownHostException while fetching", () async {
@@ -254,7 +271,7 @@ void main() {
         for (final e in events) {
           yield e;
         }
-        throw PlatformException(code: "UnknownHostException");
+        throw PlatformException(code: "$requestId::UnknownHostException");
       }
 
       platformMock.callbackStreamOutput = mockStream();
@@ -269,7 +286,7 @@ void main() {
       expect(response.statusCode, equals(statusCode));
       expect(response.contentLength, equals(contentLength));
 
-      final progressSteps = <double>[];
+      final progressSteps = <ProgressStep>[];
       Object? exception;
       try {
         await for (final newProgress in response.progressStream) {
@@ -279,7 +296,12 @@ void main() {
         exception = e;
       }
 
-      expect(DeepCollectionEquality().equals(progressSteps, [0.25]), isTrue);
+      expect(
+        DeepCollectionEquality().equals(progressSteps, [
+          ProgressStep(downloaded: 30, contentLength: 120),
+        ]),
+        isTrue,
+      );
       expect(exception, isA<SocketException>());
     });
 
@@ -288,7 +310,7 @@ void main() {
         for (final e in events) {
           yield e;
         }
-        throw PlatformException(code: "IOException");
+        throw PlatformException(code: "$requestId::IOException");
       }
 
       platformMock.callbackStreamOutput = mockStream();
@@ -303,7 +325,7 @@ void main() {
       expect(response.statusCode, equals(statusCode));
       expect(response.contentLength, equals(contentLength));
 
-      final progressSteps = <double>[];
+      final progressSteps = <ProgressStep>[];
       Object? exception;
       try {
         await for (final newProgress in response.progressStream) {
@@ -313,7 +335,12 @@ void main() {
         exception = e;
       }
 
-      expect(DeepCollectionEquality().equals(progressSteps, [0.25]), isTrue);
+      expect(
+        DeepCollectionEquality().equals(progressSteps, [
+          ProgressStep(downloaded: 30, contentLength: 120),
+        ]),
+        isTrue,
+      );
       expect(exception, isA<FileSystemException>());
     });
 
@@ -322,7 +349,7 @@ void main() {
         for (final e in events) {
           yield e;
         }
-        throw PlatformException(code: "MalformedURLException");
+        throw PlatformException(code: "$requestId::MalformedURLException");
       }
 
       platformMock.callbackStreamOutput = mockStream();
@@ -337,7 +364,7 @@ void main() {
       expect(response.statusCode, equals(statusCode));
       expect(response.contentLength, equals(contentLength));
 
-      final progressSteps = <double>[];
+      final progressSteps = <ProgressStep>[];
       Object? exception;
       try {
         await for (final newProgress in response.progressStream) {
@@ -347,7 +374,12 @@ void main() {
         exception = e;
       }
 
-      expect(DeepCollectionEquality().equals(progressSteps, [0.25]), isTrue);
+      expect(
+        DeepCollectionEquality().equals(progressSteps, [
+          ProgressStep(downloaded: 30, contentLength: 120),
+        ]),
+        isTrue,
+      );
       expect(exception, isA<FormatException>());
     });
     test("Unknown Exception while fetching", () async {
@@ -355,7 +387,7 @@ void main() {
         for (final e in events) {
           yield e;
         }
-        throw PlatformException(code: "UnknownException");
+        throw PlatformException(code: "$requestId::UnknownException");
       }
 
       platformMock.callbackStreamOutput = mockStream();
@@ -370,7 +402,7 @@ void main() {
       expect(response.statusCode, equals(statusCode));
       expect(response.contentLength, equals(contentLength));
 
-      final progressSteps = <double>[];
+      final progressSteps = <ProgressStep>[];
       Object? exception;
       try {
         await for (final newProgress in response.progressStream) {
@@ -380,7 +412,12 @@ void main() {
         exception = e;
       }
 
-      expect(DeepCollectionEquality().equals(progressSteps, [0.25]), isTrue);
+      expect(
+        DeepCollectionEquality().equals(progressSteps, [
+          ProgressStep(downloaded: 30, contentLength: 120),
+        ]),
+        isTrue,
+      );
       expect(exception, isA<PlatformException>());
     });
 
@@ -404,7 +441,7 @@ void main() {
       expect(response.statusCode, equals(statusCode));
       expect(response.contentLength, equals(contentLength));
 
-      final progressSteps = <double>[];
+      final progressSteps = <ProgressStep>[];
       Object? exception;
       try {
         await for (final newProgress in response.progressStream) {
@@ -414,13 +451,18 @@ void main() {
         exception = e;
       }
 
-      expect(DeepCollectionEquality().equals(progressSteps, [0.25]), isTrue);
+      expect(
+        DeepCollectionEquality().equals(progressSteps, [
+          ProgressStep(downloaded: 30, contentLength: 120),
+        ]),
+        isTrue,
+      );
       expect(exception, isA<CertificateException>());
     });
 
     test("FormatException before getting status message", () async {
       Stream<Map<String, dynamic>> mockStream() async* {
-        throw PlatformException(code: "MalformedURLException");
+        throw PlatformException(code: "$requestId::MalformedURLException");
       }
 
       platformMock.callbackStreamOutput = mockStream();

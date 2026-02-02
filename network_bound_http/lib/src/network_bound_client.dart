@@ -1,12 +1,23 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:network_bound_http_platform_interface/network_bound_http_platform_interface.dart';
 import 'package:uuid/uuid.dart';
 
 enum NetworkType { standard, wifi, cellular }
+
+class ProgressStep extends Equatable {
+  final int downloaded;
+  final int? contentLength;
+
+  const ProgressStep({required this.downloaded, required this.contentLength});
+
+  @override
+  List<Object?> get props => [downloaded, contentLength];
+}
 
 class NetworkBoundClient {
   @visibleForTesting
@@ -54,10 +65,11 @@ class NetworkBoundClient {
   );
 
   Exception _nativeToFlutterException(
-    PlatformException nativeException,
+    String code,
+    String? message,
     Duration connectionTimeout,
   ) {
-    switch (nativeException.code) {
+    switch (code) {
       case "TimeoutCancellationException":
         return TimeoutException(
           "Check the availability of the network selected in your OS",
@@ -66,24 +78,14 @@ class NetworkBoundClient {
       case "SocketException":
       case "UnknownHostException":
         return SocketException(
-          nativeException.message != null
-              ? nativeException.message!
-              : "Your network could not have internet available",
+          message ?? "Your network could not have internet available",
         );
       case "IOException":
-        return FileSystemException(
-          nativeException.message != null
-              ? nativeException.message!
-              : "Operation not permitted",
-        );
+        return FileSystemException(message ?? "Operation not permitted");
       case "MalformedURLException":
-        return FormatException(
-          nativeException.message != null
-              ? nativeException.message!
-              : "Invalid uri",
-        );
+        return FormatException(message ?? "Invalid uri");
       default:
-        return nativeException;
+        return PlatformException(code: code, message: message);
     }
   }
 
@@ -97,11 +99,12 @@ class NetworkBoundClient {
     required Duration connectionTimeout,
     required NetworkType network,
   }) async {
-    final progressController = StreamController<double>.broadcast();
+    final progressController = StreamController<ProgressStep>.broadcast();
     final completer = Completer<NetworkBoundResponse>();
     final id = uuid.v4();
 
-    platform.callbackStream
+    late StreamSubscription subscription;
+    subscription = platform.callbackStream
         .map((e) => Map<String, dynamic>.from(e))
         .where((e) => e['id'] == id)
         .listen(
@@ -109,10 +112,15 @@ class NetworkBoundClient {
             if (e["type"] == "progress") {
               final int downloadedBytes = e["downloaded"];
               final int contentLength = e["contentLength"];
-              progressController.add(downloadedBytes / contentLength);
-              if (downloadedBytes >= contentLength) {
-                progressController.close();
-              }
+              progressController.add(
+                ProgressStep(
+                  downloaded: downloadedBytes,
+                  contentLength: contentLength == -1 ? null : contentLength,
+                ),
+              );
+            } else if (e["type"] == "done") {
+              progressController.close();
+              subscription.cancel();
             } else if (e["type"] == "status") {
               if (!completer.isCompleted) {
                 completer.complete(
@@ -126,19 +134,35 @@ class NetworkBoundClient {
             }
           },
           onError: (error, stack) {
-            final exception = error is PlatformException
-                ? _nativeToFlutterException(error, connectionTimeout)
-                : error;
+            late Exception exception;
+            if (error is PlatformException) {
+              final splitError = error.code.split("::");
+              if (splitError[0] == id) {
+                exception = _nativeToFlutterException(
+                  splitError[1],
+                  error.message,
+                  connectionTimeout,
+                );
+              }
+            } else {
+              // If this does happen it could be problem because other listeners
+              // of other requests that are open at the same time, all receive
+              // and must handle the error
+              exception = error;
+            }
             if (!completer.isCompleted) {
               completer.completeError(exception, stack);
-            } else {
+            } else if (!progressController.isClosed) {
               progressController.addError(exception, stack);
+              progressController.close();
             }
+            subscription.cancel();
           },
           onDone: () {
             // It should never reach here since the callback stream is an infinite
             // stream
             progressController.close();
+            subscription.cancel();
           },
         );
 
@@ -161,8 +185,10 @@ class NetworkBoundClient {
 
 class NetworkBoundResponse {
   final int statusCode;
-  final int contentLength;
-  final Stream<double> progressStream;
+
+  // contentLength could be not defined
+  final int? contentLength;
+  final Stream<ProgressStep> progressStream;
 
   NetworkBoundResponse({
     required this.statusCode,

@@ -75,13 +75,17 @@ class NativeHttpClient(
                             "downloaded" to downloaded,
                         )
                     )
-                    // Log.d("CUSTOM-LOGS", "NativeHttpClient: Progress sent")
                 }
+                channelHelper.emitToFlutter(
+                    mapOf(
+                        "id" to request.id,
+                        "type" to "done",
+                        "contentLength" to connection.contentLengthLong,
+                        "downloaded" to downloaded,
+                    )
+                )
             }
         }
-        // Log.d("CUSTOM-LOGS", "NativeHttpClient: All progresses sent")
-
-        // Log.d("CUSTOM-LOGS", "Done!")
     }
 
 
@@ -94,7 +98,7 @@ class NativeHttpClient(
             sendRequest(network, request)
         } catch (e: Exception) {
             channelHelper.emitErrorToFlutter(
-                "${e::class.simpleName}",
+                "${request.id}::${e::class.simpleName}",
                 e.message,
                 ""
             )
