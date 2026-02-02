@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:collection/collection.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:network_bound_http/network_bound_http.dart';
 import 'package:uuid/data.dart';
@@ -47,7 +49,7 @@ void main() {
     client.uuid = uuidMock;
   });
 
-  group("fetchToFile", () {
+  group("fetchToFile ok", () {
     test("Correct request/response flow", () async {
       uuidMock.v4Uuid = requestId;
 
@@ -107,6 +109,295 @@ void main() {
         DeepCollectionEquality().equals(progressSteps, [0.25, 0.5, 0.75, 1]),
         isTrue,
       );
+    });
+  });
+  group("fetchToFile error", () {
+    uuidMock.v4Uuid = requestId;
+    final events = <Map<String, dynamic>>[
+      {
+        "id": requestId,
+        "type": statusEventName,
+        "statusCode": statusCode,
+        "headers": responseHeaders,
+        "outputFile": outputFile,
+        "contentLength": contentLength,
+      },
+      {
+        "id": requestId,
+        "type": progressEventName,
+        "contentLength": contentLength,
+        "downloaded": 30,
+      },
+    ];
+
+    setUp(() {
+      platformMock.sendRequestOutput = null;
+      platformMock.requestInput = {
+        'id': requestId,
+        'uri': uri,
+        'method': method,
+        'headers': requestHeaders,
+        'timeout': connectionTimeout.inMilliseconds,
+        'network': network.name.toUpperCase(),
+        'outputPath': outputFile,
+      };
+    });
+    test("TimeoutCancellationException while fetching", () async {
+      Stream<Map<String, dynamic>> mockStream() async* {
+        for (final e in events) {
+          yield e;
+        }
+        throw PlatformException(code: "TimeoutCancellationException");
+      }
+
+      platformMock.callbackStreamOutput = mockStream();
+
+      final response = await client.get(
+        outputFile: File(outputFile),
+        uri: uri,
+        headers: requestHeaders,
+        connectionTimeout: connectionTimeout,
+        network: network,
+      );
+      expect(response.statusCode, equals(statusCode));
+      expect(response.contentLength, equals(contentLength));
+
+      final progressSteps = <double>[];
+      Object? exception;
+      try {
+        await for (final newProgress in response.progressStream) {
+          progressSteps.add(newProgress);
+        }
+      } catch (e) {
+        exception = e;
+      }
+
+      expect(DeepCollectionEquality().equals(progressSteps, [0.25]), isTrue);
+      expect(exception, isA<TimeoutException>());
+    });
+
+    test("SocketException while fetching", () async {
+      Stream<Map<String, dynamic>> mockStream() async* {
+        for (final e in events) {
+          yield e;
+        }
+        throw PlatformException(code: "SocketException");
+      }
+
+      platformMock.callbackStreamOutput = mockStream();
+
+      final response = await client.get(
+        outputFile: File(outputFile),
+        uri: uri,
+        headers: requestHeaders,
+        connectionTimeout: connectionTimeout,
+        network: network,
+      );
+      expect(response.statusCode, equals(statusCode));
+      expect(response.contentLength, equals(contentLength));
+
+      final progressSteps = <double>[];
+      Object? exception;
+      try {
+        await for (final newProgress in response.progressStream) {
+          progressSteps.add(newProgress);
+        }
+      } catch (e) {
+        exception = e;
+      }
+
+      expect(DeepCollectionEquality().equals(progressSteps, [0.25]), isTrue);
+      expect(exception, isA<SocketException>());
+    });
+    test("UnknownHostException while fetching", () async {
+      Stream<Map<String, dynamic>> mockStream() async* {
+        for (final e in events) {
+          yield e;
+        }
+        throw PlatformException(code: "UnknownHostException");
+      }
+
+      platformMock.callbackStreamOutput = mockStream();
+
+      final response = await client.get(
+        outputFile: File(outputFile),
+        uri: uri,
+        headers: requestHeaders,
+        connectionTimeout: connectionTimeout,
+        network: network,
+      );
+      expect(response.statusCode, equals(statusCode));
+      expect(response.contentLength, equals(contentLength));
+
+      final progressSteps = <double>[];
+      Object? exception;
+      try {
+        await for (final newProgress in response.progressStream) {
+          progressSteps.add(newProgress);
+        }
+      } catch (e) {
+        exception = e;
+      }
+
+      expect(DeepCollectionEquality().equals(progressSteps, [0.25]), isTrue);
+      expect(exception, isA<SocketException>());
+    });
+
+    test("IOException while fetching", () async {
+      Stream<Map<String, dynamic>> mockStream() async* {
+        for (final e in events) {
+          yield e;
+        }
+        throw PlatformException(code: "IOException");
+      }
+
+      platformMock.callbackStreamOutput = mockStream();
+
+      final response = await client.get(
+        outputFile: File(outputFile),
+        uri: uri,
+        headers: requestHeaders,
+        connectionTimeout: connectionTimeout,
+        network: network,
+      );
+      expect(response.statusCode, equals(statusCode));
+      expect(response.contentLength, equals(contentLength));
+
+      final progressSteps = <double>[];
+      Object? exception;
+      try {
+        await for (final newProgress in response.progressStream) {
+          progressSteps.add(newProgress);
+        }
+      } catch (e) {
+        exception = e;
+      }
+
+      expect(DeepCollectionEquality().equals(progressSteps, [0.25]), isTrue);
+      expect(exception, isA<FileSystemException>());
+    });
+
+    test("MalformedURLException while fetching", () async {
+      Stream<Map<String, dynamic>> mockStream() async* {
+        for (final e in events) {
+          yield e;
+        }
+        throw PlatformException(code: "MalformedURLException");
+      }
+
+      platformMock.callbackStreamOutput = mockStream();
+
+      final response = await client.get(
+        outputFile: File(outputFile),
+        uri: uri,
+        headers: requestHeaders,
+        connectionTimeout: connectionTimeout,
+        network: network,
+      );
+      expect(response.statusCode, equals(statusCode));
+      expect(response.contentLength, equals(contentLength));
+
+      final progressSteps = <double>[];
+      Object? exception;
+      try {
+        await for (final newProgress in response.progressStream) {
+          progressSteps.add(newProgress);
+        }
+      } catch (e) {
+        exception = e;
+      }
+
+      expect(DeepCollectionEquality().equals(progressSteps, [0.25]), isTrue);
+      expect(exception, isA<FormatException>());
+    });
+    test("Unknown Exception while fetching", () async {
+      Stream<Map<String, dynamic>> mockStream() async* {
+        for (final e in events) {
+          yield e;
+        }
+        throw PlatformException(code: "UnknownException");
+      }
+
+      platformMock.callbackStreamOutput = mockStream();
+
+      final response = await client.get(
+        outputFile: File(outputFile),
+        uri: uri,
+        headers: requestHeaders,
+        connectionTimeout: connectionTimeout,
+        network: network,
+      );
+      expect(response.statusCode, equals(statusCode));
+      expect(response.contentLength, equals(contentLength));
+
+      final progressSteps = <double>[];
+      Object? exception;
+      try {
+        await for (final newProgress in response.progressStream) {
+          progressSteps.add(newProgress);
+        }
+      } catch (e) {
+        exception = e;
+      }
+
+      expect(DeepCollectionEquality().equals(progressSteps, [0.25]), isTrue);
+      expect(exception, isA<PlatformException>());
+    });
+
+    test("Exception is not PlatformException", () async {
+      Stream<Map<String, dynamic>> mockStream() async* {
+        for (final e in events) {
+          yield e;
+        }
+        throw CertificateException();
+      }
+
+      platformMock.callbackStreamOutput = mockStream();
+
+      final response = await client.get(
+        outputFile: File(outputFile),
+        uri: uri,
+        headers: requestHeaders,
+        connectionTimeout: connectionTimeout,
+        network: network,
+      );
+      expect(response.statusCode, equals(statusCode));
+      expect(response.contentLength, equals(contentLength));
+
+      final progressSteps = <double>[];
+      Object? exception;
+      try {
+        await for (final newProgress in response.progressStream) {
+          progressSteps.add(newProgress);
+        }
+      } catch (e) {
+        exception = e;
+      }
+
+      expect(DeepCollectionEquality().equals(progressSteps, [0.25]), isTrue);
+      expect(exception, isA<CertificateException>());
+    });
+
+    test("FormatException before getting status message", () async {
+      Stream<Map<String, dynamic>> mockStream() async* {
+        throw PlatformException(code: "MalformedURLException");
+      }
+
+      platformMock.callbackStreamOutput = mockStream();
+
+      Object? exception;
+      try {
+        await client.get(
+          outputFile: File(outputFile),
+          uri: uri,
+          headers: requestHeaders,
+          connectionTimeout: connectionTimeout,
+          network: network,
+        );
+      } catch (e) {
+        exception = e;
+      }
+      expect(exception, isA<FormatException>());
     });
   });
 }
