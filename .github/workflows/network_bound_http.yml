@@ -72,3 +72,4 @@ jobs:
         with:
           files: network_bound_http/coverage/lcov.info
           fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
