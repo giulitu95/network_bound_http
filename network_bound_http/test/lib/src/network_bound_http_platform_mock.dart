@@ -20,7 +20,10 @@ class NetworkBoundHttpPlatformMock extends Fake
   @override
   Future<String?> sendRequest({required Map<String, dynamic> request}) async {
     assert(requestInput != null);
-    expect(const DeepCollectionEquality.unordered().equals(request, requestInput), isTrue);
+    expect(
+      const DeepCollectionEquality.unordered().equals(request, requestInput),
+      isTrue,
+    );
     return sendRequestOutput;
   }
 }
