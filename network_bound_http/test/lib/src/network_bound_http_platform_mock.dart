@@ -26,7 +26,7 @@ class NetworkBoundHttpPlatformMock extends Fake
       ),
       isTrue,
     );
-    sendRequestCallCounter ++;
+    sendRequestCallCounter++;
     return null;
   }
 }

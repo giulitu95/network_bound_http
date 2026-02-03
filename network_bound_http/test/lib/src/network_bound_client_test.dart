@@ -5,12 +5,26 @@ import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:network_bound_http/network_bound_http.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:uuid/data.dart';
 import 'package:uuid/uuid.dart';
 
 import 'network_bound_http_platform_mock.dart';
 
-class NetworkBoundClientMock extends NetworkBoundClient {
+class FakePathProviderPlatform extends Fake
+    with MockPlatformInterfaceMixin
+    implements PathProviderPlatform {
+  @override
+  Future<String?> getTemporaryPath() async {
+    return Directory.systemTemp.path;
+  }
+}
+
+class NetworkBoundClientMock1 extends NetworkBoundClient {
+  bool isExceptionThrown = false;
   File? outputFileInput;
   String? uriInput;
   String? methodInput;
@@ -20,10 +34,10 @@ class NetworkBoundClientMock extends NetworkBoundClient {
   NetworkType? networkTypeInput;
 
   bool isFetchToFileCalled = false;
-  NetworkBoundResponse? fetchToFileOutput;
+  NetworkBoundStreamResponse? fetchToFileOutput;
 
   @override
-  Future<NetworkBoundResponse> fetchToFile({
+  Future<NetworkBoundStreamResponse> fetchToFile({
     required File outputFile,
     required String uri,
     required String method,
@@ -33,7 +47,44 @@ class NetworkBoundClientMock extends NetworkBoundClient {
     required NetworkType network,
   }) async {
     isFetchToFileCalled = true;
+    if (isExceptionThrown) throw Exception("some exception");
     expect(outputFileInput!.path, equals(outputFile.path));
+    expect(uriInput, equals(uri));
+    expect(methodInput, equals(method));
+    expect(
+      const DeepCollectionEquality.unordered().equals(headersInput, headers),
+      isTrue,
+    );
+    expect(bodyInput, equals(body));
+    expect(connectionTimeoutInput, equals(connectionTimeout));
+    expect(networkTypeInput, equals(network));
+
+    assert(fetchToFileOutput != null);
+    return fetchToFileOutput!;
+  }
+}
+
+class NetworkBoundClientMock2 extends NetworkBoundClient {
+  String? uriInput;
+  String? methodInput;
+  Map<String, dynamic>? headersInput;
+  Uint8List? bodyInput;
+  Duration? connectionTimeoutInput;
+  NetworkType? networkTypeInput;
+
+  bool isFetchCalled = false;
+  NetworkBoundCompleteResponse? fetchToFileOutput;
+
+  @override
+  Future<NetworkBoundCompleteResponse> fetch({
+    required String uri,
+    required String method,
+    Map<String, dynamic>? headers,
+    Uint8List? body,
+    required Duration connectionTimeout,
+    required NetworkType network,
+  }) async {
+    isFetchCalled = true;
     expect(uriInput, equals(uri));
     expect(methodInput, equals(method));
     expect(
@@ -66,6 +117,7 @@ class UuidMock extends Fake implements Uuid {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   const progressEventName = "progress";
   const statusEventName = "status";
   final platformMock = NetworkBoundHttpPlatformMock();
@@ -135,7 +187,7 @@ void main() {
         },
       ];
 
-      final response = await client.post(
+      final response = await client.postToFile(
         outputFile: File(outputFile),
         uri: uri,
         headers: requestHeaders,
@@ -199,7 +251,7 @@ void main() {
           },
         ];
 
-        final response = await client.get(
+        final response = await client.getToFile(
           outputFile: File(outputFile),
           uri: uri,
           headers: requestHeaders,
@@ -308,7 +360,7 @@ void main() {
         },
       ];
 
-      final res1 = await client.get(
+      final res1 = await client.getToFile(
         outputFile: File(outputFile),
         uri: uri,
         headers: requestHeaders,
@@ -317,7 +369,7 @@ void main() {
       );
       final progressSteps1 = <ProgressStep>[];
       final future1 = res1.progressStream.forEach(progressSteps1.add);
-      final res2 = await client.get(
+      final res2 = await client.getToFile(
         outputFile: File(outputFile),
         uri: uri,
         headers: requestHeaders,
@@ -400,7 +452,7 @@ void main() {
 
       platformMock.callbackStreamOutput = mockStream();
 
-      final response = await client.get(
+      final response = await client.getToFile(
         outputFile: File(outputFile),
         uri: uri,
         headers: requestHeaders,
@@ -439,7 +491,7 @@ void main() {
 
       platformMock.callbackStreamOutput = mockStream();
 
-      final response = await client.get(
+      final response = await client.getToFile(
         outputFile: File(outputFile),
         uri: uri,
         headers: requestHeaders,
@@ -477,7 +529,7 @@ void main() {
 
       platformMock.callbackStreamOutput = mockStream();
 
-      final response = await client.get(
+      final response = await client.getToFile(
         outputFile: File(outputFile),
         uri: uri,
         headers: requestHeaders,
@@ -516,7 +568,7 @@ void main() {
 
       platformMock.callbackStreamOutput = mockStream();
 
-      final response = await client.get(
+      final response = await client.getToFile(
         outputFile: File(outputFile),
         uri: uri,
         headers: requestHeaders,
@@ -555,7 +607,7 @@ void main() {
 
       platformMock.callbackStreamOutput = mockStream();
 
-      final response = await client.get(
+      final response = await client.getToFile(
         outputFile: File(outputFile),
         uri: uri,
         headers: requestHeaders,
@@ -593,7 +645,7 @@ void main() {
 
       platformMock.callbackStreamOutput = mockStream();
 
-      final response = await client.get(
+      final response = await client.getToFile(
         outputFile: File(outputFile),
         uri: uri,
         headers: requestHeaders,
@@ -631,7 +683,7 @@ void main() {
 
       platformMock.callbackStreamOutput = mockStream();
 
-      final response = await client.get(
+      final response = await client.getToFile(
         outputFile: File(outputFile),
         uri: uri,
         headers: requestHeaders,
@@ -670,7 +722,7 @@ void main() {
 
       platformMock.callbackStreamOutput = mockStream();
 
-      final response = await client.get(
+      final response = await client.getToFile(
         outputFile: File(outputFile),
         uri: uri,
         headers: requestHeaders,
@@ -708,7 +760,7 @@ void main() {
 
       Object? exception;
       try {
-        await client.get(
+        await client.getToFile(
           outputFile: File(outputFile),
           uri: uri,
           headers: requestHeaders,
@@ -729,7 +781,7 @@ void main() {
 
       Object? exception;
       try {
-        await client.get(
+        await client.getToFile(
           outputFile: File(outputFile),
           uri: uri,
           headers: requestHeaders,
@@ -750,7 +802,7 @@ void main() {
 
       Object? exception;
       try {
-        await client.get(
+        await client.getToFile(
           outputFile: File(outputFile),
           uri: uri,
           headers: requestHeaders,
@@ -768,9 +820,9 @@ void main() {
     });
   });
   group("GET/ POST  request", () {
-    late NetworkBoundClientMock mock;
+    late NetworkBoundClientMock1 mock;
     setUp(() {
-      mock = NetworkBoundClientMock();
+      mock = NetworkBoundClientMock1();
     });
     test("GET request calls fetchToFile", () async {
       mock.outputFileInput = File(outputFile);
@@ -780,14 +832,14 @@ void main() {
       mock.connectionTimeoutInput = connectionTimeout;
       mock.networkTypeInput = network;
 
-      final mockedRes = NetworkBoundResponse(
+      final mockedRes = NetworkBoundStreamResponse(
         statusCode: 200,
         contentLength: contentLength,
         progressStream: Stream.empty(),
       );
 
       mock.fetchToFileOutput = mockedRes;
-      final res = await mock.get(
+      final res = await mock.getToFile(
         outputFile: File(outputFile),
         uri: uri,
         headers: requestHeaders,
@@ -800,7 +852,7 @@ void main() {
     });
 
     test("POST request calls fetchToFile", () async {
-      NetworkBoundClientMock mock = NetworkBoundClientMock();
+      NetworkBoundClientMock1 mock = NetworkBoundClientMock1();
       mock.outputFileInput = File(outputFile);
       mock.uriInput = uri;
       mock.methodInput = "POST";
@@ -809,13 +861,13 @@ void main() {
       mock.connectionTimeoutInput = connectionTimeout;
       mock.networkTypeInput = network;
 
-      final mockedRes = NetworkBoundResponse(
+      final mockedRes = NetworkBoundStreamResponse(
         statusCode: 200,
         contentLength: contentLength,
         progressStream: Stream.empty(),
       );
       mock.fetchToFileOutput = mockedRes;
-      final res = await mock.post(
+      final res = await mock.postToFile(
         outputFile: File(outputFile),
         uri: uri,
         headers: requestHeaders,
@@ -826,6 +878,172 @@ void main() {
 
       expect(mock.isFetchToFileCalled, isTrue);
       expect(res, equals(mockedRes));
+    });
+  });
+  group("fetch", () {
+    late NetworkBoundClientMock1 mock;
+    late File tmpFile;
+    final uuid = "uuidV4";
+    final writtenBytes = Uint8List.fromList([1, 2, 3, 4, 5, 6]);
+    setUp(() async {
+      PathProviderPlatform.instance = FakePathProviderPlatform();
+      mock = NetworkBoundClientMock1();
+      final uuidMock = UuidMock();
+      uuidMock.v4Uuids = ["uuidV4"];
+      mock.uuid = uuidMock;
+      final tempDir = await getTemporaryDirectory();
+      tmpFile = File(p.join(tempDir.path, "$uuid.tmp"));
+      await tmpFile.writeAsBytes(writtenBytes);
+    });
+    tearDown(() async {
+      if (await tmpFile.exists()) await tmpFile.delete();
+    });
+    test("fetch completes normally", () async {
+      final events = <ProgressStep>[
+        ProgressStep(downloaded: 50, contentLength: contentLength),
+      ];
+      final stream = Stream.fromIterable(events);
+      mock.fetchToFileOutput = NetworkBoundStreamResponse(
+        statusCode: 200,
+        contentLength: contentLength,
+        progressStream: stream,
+      );
+      mock.outputFileInput = tmpFile;
+      mock.uriInput = uri;
+      mock.methodInput = method;
+      mock.headersInput = requestHeaders;
+      mock.bodyInput = body;
+      mock.connectionTimeoutInput = connectionTimeout;
+      mock.networkTypeInput = network;
+
+      final res = await mock.fetch(
+        uri: uri,
+        method: method,
+        headers: requestHeaders,
+        connectionTimeout: connectionTimeout,
+        network: network,
+        body: body,
+      );
+
+      expect(mock.isFetchToFileCalled, isTrue);
+      expect(
+        const DeepCollectionEquality().equals(res.body, writtenBytes),
+        isTrue,
+      );
+      expect(res.statusCode, equals(statusCode));
+      expect(res.contentLength, equals(contentLength));
+    });
+
+    test("error while fetching completes normally", () async {
+      Stream<ProgressStep> mockedStream() async* {
+        throw Exception("exception");
+      }
+
+      mock.fetchToFileOutput = NetworkBoundStreamResponse(
+        statusCode: 200,
+        contentLength: contentLength,
+        progressStream: mockedStream(),
+      );
+      mock.outputFileInput = tmpFile;
+      mock.uriInput = uri;
+      mock.methodInput = method;
+      mock.headersInput = requestHeaders;
+      mock.bodyInput = body;
+      mock.connectionTimeoutInput = connectionTimeout;
+      mock.networkTypeInput = network;
+
+      Object? exception;
+      try {
+        await mock.fetch(
+          uri: uri,
+          method: method,
+          headers: requestHeaders,
+          connectionTimeout: connectionTimeout,
+          network: network,
+          body: body,
+        );
+      } catch (e) {
+        exception = e;
+      }
+
+      expect(mock.isFetchToFileCalled, isTrue);
+      expect(exception, isA<Exception>());
+    });
+
+    test("error while calling fetchToFile", () async {
+      mock.isExceptionThrown = true;
+
+      Object? exception;
+      try {
+        await mock.fetch(
+          uri: uri,
+          method: method,
+          headers: requestHeaders,
+          connectionTimeout: connectionTimeout,
+          network: network,
+          body: body,
+        );
+      } catch (e) {
+        exception = e;
+      }
+
+      expect(mock.isFetchToFileCalled, isTrue);
+      expect(exception, isA<Exception>());
+    });
+    test("get", () async {
+      final output = Uint8List.fromList([1, 2, 3, 4]);
+      final mock2 = NetworkBoundClientMock2();
+      mock2.uriInput = uri;
+      mock2.methodInput = "GET";
+      mock2.headersInput = requestHeaders;
+      mock2.connectionTimeoutInput = connectionTimeout;
+      mock2.networkTypeInput = network;
+
+      mock2.fetchToFileOutput = NetworkBoundCompleteResponse(
+        body: output,
+        contentLength: contentLength,
+        statusCode: statusCode,
+      );
+      final res = await mock2.get(
+        uri: uri,
+        headers: requestHeaders,
+        connectionTimeout: connectionTimeout,
+        network: network,
+      );
+
+      expect(mock2.isFetchCalled, isTrue);
+      expect(const DeepCollectionEquality().equals(res.body, output), isTrue);
+      expect(res.statusCode, equals(statusCode));
+      expect(res.contentLength, equals(contentLength));
+    });
+
+    test("post", () async {
+      final output = Uint8List.fromList([1, 2, 3, 4]);
+      final mock2 = NetworkBoundClientMock2();
+      mock2.uriInput = uri;
+      mock2.methodInput = "POST";
+      mock2.headersInput = requestHeaders;
+      mock2.connectionTimeoutInput = connectionTimeout;
+      mock2.networkTypeInput = network;
+      mock2.bodyInput = body;
+
+      mock2.fetchToFileOutput = NetworkBoundCompleteResponse(
+        body: output,
+        contentLength: contentLength,
+        statusCode: statusCode,
+      );
+      final res = await mock2.post(
+        uri: uri,
+        body: body,
+        headers: requestHeaders,
+        connectionTimeout: connectionTimeout,
+        network: network,
+      );
+
+      expect(mock2.isFetchCalled, isTrue);
+      expect(const DeepCollectionEquality().equals(res.body, output), isTrue);
+      expect(res.statusCode, equals(statusCode));
+      expect(res.contentLength, equals(contentLength));
     });
   });
 }

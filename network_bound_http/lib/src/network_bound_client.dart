@@ -5,6 +5,8 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:network_bound_http_platform_interface/network_bound_http_platform_interface.dart';
+import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 enum NetworkType { standard, wifi, cellular }
@@ -32,7 +34,7 @@ class NetworkBoundClient {
   @visibleForTesting
   Uuid uuid = const Uuid();
 
-  Future<NetworkBoundResponse> get({
+  Future<NetworkBoundStreamResponse> getToFile({
     required File outputFile,
     required String uri,
     Map<String, dynamic>? headers,
@@ -47,7 +49,20 @@ class NetworkBoundClient {
     network: network,
   );
 
-  Future<NetworkBoundResponse> post({
+  Future<NetworkBoundCompleteResponse> get({
+    required String uri,
+    Map<String, dynamic>? headers,
+    Duration connectionTimeout = defaultConnectionTimeout,
+    NetworkType network = defaultNetwork,
+  }) => fetch(
+    uri: uri,
+    method: "GET",
+    headers: headers,
+    connectionTimeout: connectionTimeout,
+    network: network,
+  );
+
+  Future<NetworkBoundStreamResponse> postToFile({
     required File outputFile,
     required String uri,
     Map<String, dynamic>? headers,
@@ -60,6 +75,21 @@ class NetworkBoundClient {
     method: "POST",
     body: body,
     headers: headers,
+    connectionTimeout: connectionTimeout,
+    network: network,
+  );
+
+  Future<NetworkBoundCompleteResponse> post({
+    required String uri,
+    Map<String, dynamic>? headers,
+    Uint8List? body,
+    Duration connectionTimeout = defaultConnectionTimeout,
+    NetworkType network = defaultNetwork,
+  }) => fetch(
+    uri: uri,
+    method: "POST",
+    headers: headers,
+    body: body,
     connectionTimeout: connectionTimeout,
     network: network,
   );
@@ -136,7 +166,46 @@ class NetworkBoundClient {
   }
 
   @visibleForTesting
-  Future<NetworkBoundResponse> fetchToFile({
+  Future<NetworkBoundCompleteResponse> fetch({
+    required String uri,
+    required String method,
+    Map<String, dynamic>? headers,
+    Uint8List? body,
+    required Duration connectionTimeout,
+    required NetworkType network,
+  }) async {
+    final tempDir = await getTemporaryDirectory();
+    final destFile = File(join(tempDir.path, "${uuid.v4()}.tmp"));
+    try {
+      final res = await fetchToFile(
+        outputFile: destFile,
+        uri: uri,
+        method: method,
+        body: body,
+        headers: headers,
+        connectionTimeout: connectionTimeout,
+        network: network,
+      );
+      try {
+        await for (final _ in res.progressStream) {}
+        final output = await destFile.readAsBytes();
+        return NetworkBoundCompleteResponse(
+          statusCode: res.statusCode,
+          contentLength: res.contentLength,
+          body: output,
+        );
+      } catch (e, _) {
+        if (await destFile.exists()) await destFile.delete();
+        rethrow;
+      }
+    } catch (e) {
+      if (await destFile.exists()) await destFile.delete();
+      rethrow;
+    }
+  }
+
+  @visibleForTesting
+  Future<NetworkBoundStreamResponse> fetchToFile({
     required File outputFile,
     required String uri,
     required String method,
@@ -146,7 +215,7 @@ class NetworkBoundClient {
     required NetworkType network,
   }) async {
     final progressController = StreamController<ProgressStep>.broadcast();
-    final completer = Completer<NetworkBoundResponse>();
+    final completer = Completer<NetworkBoundStreamResponse>();
     final id = uuid.v4();
 
     late StreamSubscription subscription;
@@ -176,7 +245,7 @@ class NetworkBoundClient {
                 // As soon as a status event arrives, we return from the
                 // fetchToFile function
                 completer.complete(
-                  NetworkBoundResponse(
+                  NetworkBoundStreamResponse(
                     statusCode: e["statusCode"],
                     contentLength: e["contentLength"],
                     progressStream: progressController.stream,
@@ -229,16 +298,30 @@ class NetworkBoundClient {
   }
 }
 
+class NetworkBoundStreamResponse extends NetworkBoundResponse {
+  final Stream<ProgressStep> progressStream;
+  NetworkBoundStreamResponse({
+    required super.statusCode,
+    required super.contentLength,
+    required this.progressStream,
+  });
+}
+
+class NetworkBoundCompleteResponse extends NetworkBoundResponse {
+  final Uint8List body;
+
+  NetworkBoundCompleteResponse({
+    required super.statusCode,
+    required super.contentLength,
+    required this.body,
+  });
+}
+
 class NetworkBoundResponse {
   final int statusCode;
 
   // contentLength could be not defined
   final int? contentLength;
-  final Stream<ProgressStep> progressStream;
 
-  NetworkBoundResponse({
-    required this.statusCode,
-    required this.contentLength,
-    required this.progressStream,
-  });
+  NetworkBoundResponse({required this.statusCode, required this.contentLength});
 }

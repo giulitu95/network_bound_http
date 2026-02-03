@@ -45,7 +45,7 @@ class _DownloadWidgetState extends State<_DownloadWidget> {
     final path = "${(await getTemporaryDirectory()).path}.tmp";
     final file = File(path);
 
-    late NetworkBoundResponse res;
+    late NetworkBoundStreamResponse res;
     setState(() {
       error = null;
       content = null;
@@ -53,7 +53,7 @@ class _DownloadWidgetState extends State<_DownloadWidget> {
       progress = null;
     });
     try {
-      res = await client.get(
+      res = await client.getToFile(
         outputFile: File(path),
         uri: uriController.text,
         network: network,
