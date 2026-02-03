@@ -30,105 +30,174 @@ class _DownloadWidget extends StatefulWidget {
 }
 
 class _DownloadWidgetState extends State<_DownloadWidget> {
+  final TextEditingController uriController = TextEditingController(
+    text: "https://example.com/",
+  );
+
   NetworkBoundClient client = NetworkBoundClient();
-  String? content1;
-  double? progress1;
-  int? statusCode1;
+  String? content;
+  String? error;
+  double? progress;
+  int? statusCode;
+  NetworkType networkType = NetworkType.standard;
 
-  String? content2;
-  double? progress2;
-  int? statusCode2;
-
-  void startDownload1() async {
+  void startDownload1(NetworkType network) async {
     final path = "${(await getTemporaryDirectory()).path}.tmp";
     final file = File(path);
 
     late NetworkBoundResponse res;
+    setState(() {
+      error = null;
+      content = null;
+      statusCode = null;
+      progress = null;
+    });
     try {
       res = await client.get(
         outputFile: File(path),
-        uri: "https://proof.ovh.net/files/1Gb.dat",
-        network: NetworkType.cellular,
+        uri: uriController.text,
+        network: network,
       );
       setState(() {
-        statusCode1 = res.statusCode;
+        statusCode = res.statusCode;
       });
       res.progressStream.listen(
         (newProgress) => setState(() {
-          progress1 = newProgress;
+          progress = newProgress.contentLength != null
+              ? newProgress.downloaded / newProgress.contentLength!
+              : null;
         }),
         onDone: () async {
           final newContent = await file.readAsString();
           setState(() {
-            content1 = newContent;
+            content = newContent;
           });
           await file.delete();
         },
         onError: (e) async {
-          // print("error");
-          await file.delete();
-        },
-      );
-    } catch (e) {
-      // print("tmp");
-    }
-  }
-
-  void startDownload2() async {
-    final path = "${(await getTemporaryDirectory()).path}.tmp";
-    final file = File(path);
-
-    late NetworkBoundResponse res;
-    try {
-      res = await client.get(
-        outputFile: File(path),
-        uri: "https://proof.ovh.net/files/1Gb.dat",
-        network: NetworkType.cellular,
-      );
-      setState(() {
-        statusCode2 = res.statusCode;
-      });
-      res.progressStream.listen(
-        (newProgress) => setState(() {
-          progress2 = newProgress;
-        }),
-        onDone: () async {
-          final newContent = await file.readAsString();
           setState(() {
-            content2 = newContent;
+            error = "Failed to fetch data: $e";
           });
-          await file.delete();
-        },
-        onError: (e) async {
-          // print("error");
           await file.delete();
         },
       );
     } catch (e) {
-      // print("tmp");
+      setState(() {
+        error = "Failed to send request: $e";
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        ElevatedButton(
-          onPressed: startDownload1,
-          child: Text('Start Download'),
-        ),
-        if (progress1 != null) LinearProgressIndicator(value: progress1),
-        if (statusCode1 != null) Text(statusCode1.toString()),
-        if (content1 != null) Text(content1.toString()),
-        SizedBox(height: 10),
-        ElevatedButton(
-          onPressed: startDownload2,
-          child: Text('Start Download'),
-        ),
-        if (progress2 != null) LinearProgressIndicator(value: progress2),
-        if (statusCode2 != null) Text(statusCode1.toString()),
-        if (content2 != null) Text(content1.toString()),
-      ],
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: TextField(controller: uriController)),
+              SizedBox(width: 10),
+              if (progress != null) CircularProgressIndicator(value: progress),
+            ],
+          ),
+          SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              startDownload1(networkType);
+            },
+            child: Text('Start Download'),
+          ),
+          SizedBox(height: 5),
+          SegmentedButton<NetworkType>(
+            segments: [
+              ButtonSegment(
+                value: NetworkType.standard,
+                label: Text("Default"),
+              ),
+              ButtonSegment(value: NetworkType.wifi, label: Text("Wifi")),
+              ButtonSegment(
+                value: NetworkType.cellular,
+                label: Text("Cellular"),
+              ),
+            ],
+            selected: {networkType},
+            onSelectionChanged: (s) => setState(() => networkType = s.first),
+          ),
+          SizedBox(height: 20),
+          if (statusCode != null || error != null)
+            Expanded(
+              child: Card.outlined(
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: ListView(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "Response",
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              setState(() {
+                                error = null;
+                                content = null;
+                                statusCode = null;
+                                progress = null;
+                              });
+                            },
+                            icon: Icon(Icons.delete),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            "Status code: ",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text(statusCode.toString()),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                      if (content != null)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Body:",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            Text(content.toString()),
+                          ],
+                        ),
+                      SizedBox(height: 10),
+                      if (error != null)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Error:",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red,
+                              ),
+                            ),
+                            Text(error.toString()),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
