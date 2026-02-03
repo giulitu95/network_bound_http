@@ -53,7 +53,7 @@ class _DownloadWidgetState extends State<_DownloadWidget> {
       progress = null;
     });
     try {
-      res = await client.get(
+      res = await client.getToFile(
         outputFile: File(path),
         uri: uriController.text,
         network: network,

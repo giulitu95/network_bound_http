@@ -5,6 +5,8 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:network_bound_http_platform_interface/network_bound_http_platform_interface.dart';
+import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 enum NetworkType { standard, wifi, cellular }
@@ -32,7 +34,7 @@ class NetworkBoundClient {
   @visibleForTesting
   Uuid uuid = const Uuid();
 
-  Future<NetworkBoundResponse> get({
+  Future<NetworkBoundResponse> getToFile({
     required File outputFile,
     required String uri,
     Map<String, dynamic>? headers,
@@ -47,7 +49,20 @@ class NetworkBoundClient {
     network: network,
   );
 
-  Future<NetworkBoundResponse> post({
+  Future<Uint8List> get({
+    required String uri,
+    Map<String, dynamic>? headers,
+    Duration connectionTimeout = defaultConnectionTimeout,
+    NetworkType network = defaultNetwork,
+  }) => fetch(
+    uri: uri,
+    method: "GET",
+    headers: headers,
+    connectionTimeout: connectionTimeout,
+    network: network,
+  );
+
+  Future<NetworkBoundResponse> postToFile({
     required File outputFile,
     required String uri,
     Map<String, dynamic>? headers,
@@ -60,6 +75,21 @@ class NetworkBoundClient {
     method: "POST",
     body: body,
     headers: headers,
+    connectionTimeout: connectionTimeout,
+    network: network,
+  );
+
+  Future<Uint8List> post({
+    required String uri,
+    Map<String, dynamic>? headers,
+    Uint8List? body,
+    Duration connectionTimeout = defaultConnectionTimeout,
+    NetworkType network = defaultNetwork,
+  }) => fetch(
+    uri: uri,
+    method: "POST",
+    headers: headers,
+    body: body,
     connectionTimeout: connectionTimeout,
     network: network,
   );
@@ -132,6 +162,41 @@ class NetworkBoundClient {
       return error is Exception
           ? error
           : Exception("Platform error: unknown error");
+    }
+  }
+
+  @visibleForTesting
+  Future<Uint8List> fetch({
+    required String uri,
+    required String method,
+    Map<String, dynamic>? headers,
+    Uint8List? body,
+    required Duration connectionTimeout,
+    required NetworkType network,
+  }) async {
+    final tempDir = await getTemporaryDirectory();
+    final destFile = File(join(tempDir.path, "${uuid.v4()}.tmp"));
+    try {
+      final res = await fetchToFile(
+        outputFile: destFile,
+        uri: uri,
+        method: method,
+        body: body,
+        headers: headers,
+        connectionTimeout: connectionTimeout,
+        network: network,
+      );
+      try {
+        await for (final _ in res.progressStream) {}
+        final output = await destFile.readAsBytes();
+        return output;
+      } catch (e, _) {
+        if (await destFile.exists()) await destFile.delete();
+        rethrow;
+      }
+    } catch (e) {
+      if (await destFile.exists()) await destFile.delete();
+      rethrow;
     }
   }
 
