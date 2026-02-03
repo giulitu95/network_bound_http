@@ -1,0 +1,75 @@
+name: Network Bound Http
+
+on:
+  push:
+
+jobs:
+  flutter-format:                  
+    runs-on: ubuntu-latest  
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+            channel: stable
+            cache: true
+
+      - run: flutter clean
+        working-directory: network_bound_http
+
+      - run: flutter pub get
+        working-directory: network_bound_http
+          
+      - run: dart format --set-exit-if-changed -o none lib test
+        working-directory: network_bound_http
+
+  flutter-analyze:                  
+    runs-on: ubuntu-latest  
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+        
+      - run: flutter clean
+        working-directory: network_bound_http
+      
+      - run: flutter pub get
+        working-directory: network_bound_http
+
+      - run: flutter analyze
+        working-directory: network_bound_http
+
+  flutter-test:                  
+    runs-on: ubuntu-latest  
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      
+      - name: Flutter clean
+        run: flutter clean
+        working-directory: network_bound_http
+
+      - name: Get dependencies
+        run: flutter pub get
+        working-directory: network_bound_http
+          
+      - name: Launch flutter test
+        run: flutter test --machine --coverage 
+        working-directory: network_bound_http
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: network_bound_http/coverage/lcov.info
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
