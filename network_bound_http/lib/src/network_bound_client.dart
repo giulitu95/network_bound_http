@@ -34,7 +34,7 @@ class NetworkBoundClient {
   @visibleForTesting
   Uuid uuid = const Uuid();
 
-  Future<NetworkBoundResponse> getToFile({
+  Future<NetworkBoundStreamResponse> getToFile({
     required File outputFile,
     required String uri,
     Map<String, dynamic>? headers,
@@ -49,7 +49,7 @@ class NetworkBoundClient {
     network: network,
   );
 
-  Future<Uint8List> get({
+  Future<NetworkBoundCompleteResponse> get({
     required String uri,
     Map<String, dynamic>? headers,
     Duration connectionTimeout = defaultConnectionTimeout,
@@ -62,7 +62,7 @@ class NetworkBoundClient {
     network: network,
   );
 
-  Future<NetworkBoundResponse> postToFile({
+  Future<NetworkBoundStreamResponse> postToFile({
     required File outputFile,
     required String uri,
     Map<String, dynamic>? headers,
@@ -79,7 +79,7 @@ class NetworkBoundClient {
     network: network,
   );
 
-  Future<Uint8List> post({
+  Future<NetworkBoundCompleteResponse> post({
     required String uri,
     Map<String, dynamic>? headers,
     Uint8List? body,
@@ -166,7 +166,7 @@ class NetworkBoundClient {
   }
 
   @visibleForTesting
-  Future<Uint8List> fetch({
+  Future<NetworkBoundCompleteResponse> fetch({
     required String uri,
     required String method,
     Map<String, dynamic>? headers,
@@ -189,7 +189,11 @@ class NetworkBoundClient {
       try {
         await for (final _ in res.progressStream) {}
         final output = await destFile.readAsBytes();
-        return output;
+        return NetworkBoundCompleteResponse(
+          statusCode: res.statusCode,
+          contentLength: res.contentLength,
+          body: output,
+        );
       } catch (e, _) {
         if (await destFile.exists()) await destFile.delete();
         rethrow;
@@ -201,7 +205,7 @@ class NetworkBoundClient {
   }
 
   @visibleForTesting
-  Future<NetworkBoundResponse> fetchToFile({
+  Future<NetworkBoundStreamResponse> fetchToFile({
     required File outputFile,
     required String uri,
     required String method,
@@ -211,7 +215,7 @@ class NetworkBoundClient {
     required NetworkType network,
   }) async {
     final progressController = StreamController<ProgressStep>.broadcast();
-    final completer = Completer<NetworkBoundResponse>();
+    final completer = Completer<NetworkBoundStreamResponse>();
     final id = uuid.v4();
 
     late StreamSubscription subscription;
@@ -241,7 +245,7 @@ class NetworkBoundClient {
                 // As soon as a status event arrives, we return from the
                 // fetchToFile function
                 completer.complete(
-                  NetworkBoundResponse(
+                  NetworkBoundStreamResponse(
                     statusCode: e["statusCode"],
                     contentLength: e["contentLength"],
                     progressStream: progressController.stream,
@@ -294,16 +298,30 @@ class NetworkBoundClient {
   }
 }
 
+class NetworkBoundStreamResponse extends NetworkBoundResponse {
+  final Stream<ProgressStep> progressStream;
+  NetworkBoundStreamResponse({
+    required super.statusCode,
+    required super.contentLength,
+    required this.progressStream,
+  });
+}
+
+class NetworkBoundCompleteResponse extends NetworkBoundResponse {
+  final Uint8List body;
+
+  NetworkBoundCompleteResponse({
+    required super.statusCode,
+    required super.contentLength,
+    required this.body,
+  });
+}
+
 class NetworkBoundResponse {
   final int statusCode;
 
   // contentLength could be not defined
   final int? contentLength;
-  final Stream<ProgressStep> progressStream;
 
-  NetworkBoundResponse({
-    required this.statusCode,
-    required this.contentLength,
-    required this.progressStream,
-  });
+  NetworkBoundResponse({required this.statusCode, required this.contentLength});
 }

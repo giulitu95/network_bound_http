@@ -45,7 +45,7 @@ class _DownloadWidgetState extends State<_DownloadWidget> {
     final path = "${(await getTemporaryDirectory()).path}.tmp";
     final file = File(path);
 
-    late NetworkBoundResponse res;
+    late NetworkBoundStreamResponse res;
     setState(() {
       error = null;
       content = null;

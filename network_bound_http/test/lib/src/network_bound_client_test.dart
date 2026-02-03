@@ -34,10 +34,10 @@ class NetworkBoundClientMock1 extends NetworkBoundClient {
   NetworkType? networkTypeInput;
 
   bool isFetchToFileCalled = false;
-  NetworkBoundResponse? fetchToFileOutput;
+  NetworkBoundStreamResponse? fetchToFileOutput;
 
   @override
-  Future<NetworkBoundResponse> fetchToFile({
+  Future<NetworkBoundStreamResponse> fetchToFile({
     required File outputFile,
     required String uri,
     required String method,
@@ -73,10 +73,10 @@ class NetworkBoundClientMock2 extends NetworkBoundClient {
   NetworkType? networkTypeInput;
 
   bool isFetchCalled = false;
-  Uint8List? fetchToFileOutput;
+  NetworkBoundCompleteResponse? fetchToFileOutput;
 
   @override
-  Future<Uint8List> fetch({
+  Future<NetworkBoundCompleteResponse> fetch({
     required String uri,
     required String method,
     Map<String, dynamic>? headers,
@@ -832,7 +832,7 @@ void main() {
       mock.connectionTimeoutInput = connectionTimeout;
       mock.networkTypeInput = network;
 
-      final mockedRes = NetworkBoundResponse(
+      final mockedRes = NetworkBoundStreamResponse(
         statusCode: 200,
         contentLength: contentLength,
         progressStream: Stream.empty(),
@@ -861,7 +861,7 @@ void main() {
       mock.connectionTimeoutInput = connectionTimeout;
       mock.networkTypeInput = network;
 
-      final mockedRes = NetworkBoundResponse(
+      final mockedRes = NetworkBoundStreamResponse(
         statusCode: 200,
         contentLength: contentLength,
         progressStream: Stream.empty(),
@@ -903,7 +903,7 @@ void main() {
         ProgressStep(downloaded: 50, contentLength: contentLength),
       ];
       final stream = Stream.fromIterable(events);
-      mock.fetchToFileOutput = NetworkBoundResponse(
+      mock.fetchToFileOutput = NetworkBoundStreamResponse(
         statusCode: 200,
         contentLength: contentLength,
         progressStream: stream,
@@ -926,7 +926,12 @@ void main() {
       );
 
       expect(mock.isFetchToFileCalled, isTrue);
-      expect(const DeepCollectionEquality().equals(res, writtenBytes), isTrue);
+      expect(
+        const DeepCollectionEquality().equals(res.body, writtenBytes),
+        isTrue,
+      );
+      expect(res.statusCode, equals(statusCode));
+      expect(res.contentLength, equals(contentLength));
     });
 
     test("error while fetching completes normally", () async {
@@ -934,7 +939,7 @@ void main() {
         throw Exception("exception");
       }
 
-      mock.fetchToFileOutput = NetworkBoundResponse(
+      mock.fetchToFileOutput = NetworkBoundStreamResponse(
         statusCode: 200,
         contentLength: contentLength,
         progressStream: mockedStream(),
@@ -994,7 +999,11 @@ void main() {
       mock2.connectionTimeoutInput = connectionTimeout;
       mock2.networkTypeInput = network;
 
-      mock2.fetchToFileOutput = output;
+      mock2.fetchToFileOutput = NetworkBoundCompleteResponse(
+        body: output,
+        contentLength: contentLength,
+        statusCode: statusCode,
+      );
       final res = await mock2.get(
         uri: uri,
         headers: requestHeaders,
@@ -1003,7 +1012,9 @@ void main() {
       );
 
       expect(mock2.isFetchCalled, isTrue);
-      expect(res, equals(output));
+      expect(const DeepCollectionEquality().equals(res.body, output), isTrue);
+      expect(res.statusCode, equals(statusCode));
+      expect(res.contentLength, equals(contentLength));
     });
 
     test("post", () async {
@@ -1016,7 +1027,11 @@ void main() {
       mock2.networkTypeInput = network;
       mock2.bodyInput = body;
 
-      mock2.fetchToFileOutput = output;
+      mock2.fetchToFileOutput = NetworkBoundCompleteResponse(
+        body: output,
+        contentLength: contentLength,
+        statusCode: statusCode,
+      );
       final res = await mock2.post(
         uri: uri,
         body: body,
@@ -1026,7 +1041,9 @@ void main() {
       );
 
       expect(mock2.isFetchCalled, isTrue);
-      expect(res, equals(output));
+      expect(const DeepCollectionEquality().equals(res.body, output), isTrue);
+      expect(res.statusCode, equals(statusCode));
+      expect(res.contentLength, equals(contentLength));
     });
   });
 }
