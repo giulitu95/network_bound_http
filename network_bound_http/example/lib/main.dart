@@ -46,6 +46,12 @@ class _DownloadWidgetState extends State<_DownloadWidget> {
     final file = File(path);
 
     late NetworkBoundResponse res;
+    setState(() {
+      error = null;
+      content = null;
+      statusCode = null;
+      progress = null;
+    });
     try {
       res = await client.get(
         outputFile: File(path),
