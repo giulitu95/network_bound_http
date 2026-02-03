@@ -50,7 +50,8 @@ class NetworkBoundClientMock extends NetworkBoundClient {
 }
 
 class UuidMock extends Fake implements Uuid {
-  String? v4Uuid;
+  List<String> v4Uuids = [];
+  int v4Calls = 0;
 
   @override
   String v4({
@@ -58,8 +59,9 @@ class UuidMock extends Fake implements Uuid {
     Map<String, dynamic>? options,
     V4Options? config,
   }) {
-    assert(v4Uuid != null);
-    return v4Uuid!;
+    final res = v4Uuids[v4Calls];
+    v4Calls++;
+    return res;
   }
 }
 
@@ -85,13 +87,15 @@ void main() {
   final body = Uint8List.fromList([1, 2, 3]);
 
   setUp(() {
+    platformMock.sendRequestCallCounter = 0;
     client.platform = platformMock;
+    uuidMock.v4Calls = 0;
     client.uuid = uuidMock;
   });
 
   group("fetchToFile ok", () {
     test("Correct request/response flow", () async {
-      uuidMock.v4Uuid = requestId;
+      uuidMock.v4Uuids = [requestId];
 
       final events = <Map<String, dynamic>>[
         {
@@ -118,23 +122,26 @@ void main() {
       ];
       final stream = Stream.fromIterable(events);
       platformMock.callbackStreamOutput = stream;
-      platformMock.sendRequestOutput = null;
-      platformMock.requestInput = {
-        'id': requestId,
-        'uri': uri,
-        'method': method,
-        'headers': requestHeaders,
-        'timeout': connectionTimeout.inMilliseconds,
-        'network': network.name.toUpperCase(),
-        'outputPath': outputFile,
-      };
+      platformMock.requestInputs = [
+        {
+          'id': requestId,
+          'uri': uri,
+          'method': "POST",
+          'headers': requestHeaders,
+          'timeout': connectionTimeout.inMilliseconds,
+          'network': network.name.toUpperCase(),
+          'body': body,
+          'outputPath': outputFile,
+        },
+      ];
 
-      final response = await client.get(
+      final response = await client.post(
         outputFile: File(outputFile),
         uri: uri,
         headers: requestHeaders,
         connectionTimeout: connectionTimeout,
         network: network,
+        body: body,
       );
 
       expect(response.statusCode, equals(statusCode));
@@ -155,9 +162,202 @@ void main() {
         isTrue,
       );
     });
+    test(
+      "Correct request/response flow. event 'done' is not received but event "
+      "channel is closed (it should not be possible)",
+      () async {
+        uuidMock.v4Uuids = [requestId];
+
+        final events = <Map<String, dynamic>>[
+          {
+            "id": requestId,
+            "type": statusEventName,
+            "statusCode": statusCode,
+            "headers": responseHeaders,
+            "outputFile": outputFile,
+            "contentLength": contentLength,
+          },
+          for (final d in [30, 60, 90, 120])
+            {
+              "id": requestId,
+              "type": progressEventName,
+              "contentLength": contentLength,
+              "downloaded": d,
+            },
+        ];
+        final stream = Stream.fromIterable(events);
+        platformMock.callbackStreamOutput = stream;
+        platformMock.requestInputs = [
+          {
+            'id': requestId,
+            'uri': uri,
+            'method': method,
+            'headers': requestHeaders,
+            'timeout': connectionTimeout.inMilliseconds,
+            'network': network.name.toUpperCase(),
+            'outputPath': outputFile,
+          },
+        ];
+
+        final response = await client.get(
+          outputFile: File(outputFile),
+          uri: uri,
+          headers: requestHeaders,
+          connectionTimeout: connectionTimeout,
+          network: network,
+        );
+
+        expect(response.statusCode, equals(statusCode));
+        expect(response.contentLength, equals(contentLength));
+
+        final progressSteps = <ProgressStep>[];
+        await for (final newProgress in response.progressStream) {
+          progressSteps.add(newProgress);
+        }
+        // if it does exit from await for, it means that progressController,
+        // has been closed
+
+        expect(
+          DeepCollectionEquality().equals(progressSteps, [
+            ProgressStep(downloaded: 30, contentLength: 120),
+            ProgressStep(downloaded: 60, contentLength: 120),
+            ProgressStep(downloaded: 90, contentLength: 120),
+            ProgressStep(downloaded: 120, contentLength: 120),
+          ]),
+          isTrue,
+        );
+      },
+    );
+    test("Correct request/response flow 2 simultaneous requests", () async {
+      final id1 = requestId;
+      final id2 = "2";
+
+      uuidMock.v4Uuids = [id1, id2];
+
+      final events = <Map<String, dynamic>>[
+        {
+          "id": id1,
+          "type": statusEventName,
+          "statusCode": statusCode,
+          "headers": responseHeaders,
+          "outputFile": outputFile,
+          "contentLength": contentLength,
+        },
+        {
+          "id": id2,
+          "type": statusEventName,
+          "statusCode": statusCode,
+          "headers": responseHeaders,
+          "outputFile": outputFile,
+          "contentLength": contentLength,
+        },
+        for (final d in [30, 60, 90, 120]) ...[
+          {
+            "id": id1,
+            "type": progressEventName,
+            "contentLength": contentLength,
+            "downloaded": d,
+          },
+          {
+            "id": id2,
+            "type": progressEventName,
+            "contentLength": contentLength,
+            "downloaded": d ~/ 2,
+          },
+        ],
+        {
+          "id": id1,
+          "type": "done",
+          "contentLength": contentLength,
+          "downloaded": contentLength,
+        },
+        for (final d in [75, 90, 105, 120])
+          {
+            "id": id2,
+            "type": progressEventName,
+            "contentLength": contentLength,
+            "downloaded": d,
+          },
+        {
+          "id": id2,
+          "type": "done",
+          "contentLength": contentLength,
+          "downloaded": contentLength,
+        },
+      ];
+      final stream = Stream.fromIterable(events);
+      platformMock.callbackStreamOutput = stream;
+      platformMock.requestInputs = [
+        {
+          'id': id1,
+          'uri': uri,
+          'method': method,
+          'headers': requestHeaders,
+          'timeout': connectionTimeout.inMilliseconds,
+          'network': network.name.toUpperCase(),
+          'outputPath': outputFile,
+        },
+        {
+          'id': id2,
+          'uri': uri,
+          'method': method,
+          'headers': requestHeaders,
+          'timeout': connectionTimeout.inMilliseconds,
+          'network': network.name.toUpperCase(),
+          'outputPath': outputFile,
+        },
+      ];
+
+      final res1 = await client.get(
+        outputFile: File(outputFile),
+        uri: uri,
+        headers: requestHeaders,
+        connectionTimeout: connectionTimeout,
+        network: network,
+      );
+      final progressSteps1 = <ProgressStep>[];
+      final future1 = res1.progressStream.forEach(progressSteps1.add);
+      final res2 = await client.get(
+        outputFile: File(outputFile),
+        uri: uri,
+        headers: requestHeaders,
+        connectionTimeout: connectionTimeout,
+        network: network,
+      );
+      final progressSteps2 = <ProgressStep>[];
+      final future2 = res2.progressStream.forEach(progressSteps2.add);
+
+      await future1;
+      await future2;
+      expect(res1.statusCode, equals(statusCode));
+      expect(res1.contentLength, equals(contentLength));
+      expect(res2.statusCode, equals(statusCode));
+      expect(res2.contentLength, equals(contentLength));
+
+      expect(
+        DeepCollectionEquality().equals(
+          progressSteps1,
+          List.generate(
+            120 ~/ 30,
+            (i) => ProgressStep(downloaded: (i + 1) * 30, contentLength: 120),
+          ),
+        ),
+        isTrue,
+      );
+      expect(
+        DeepCollectionEquality().equals(
+          progressSteps2,
+          List.generate(
+            120 ~/ 15,
+            (i) => ProgressStep(downloaded: (i + 1) * 15, contentLength: 120),
+          ),
+        ),
+        isTrue,
+      );
+    });
   });
   group("fetchToFile error", () {
-    uuidMock.v4Uuid = requestId;
+    uuidMock.v4Uuids = [requestId];
     final events = <Map<String, dynamic>>[
       {
         "id": requestId,
@@ -176,16 +376,17 @@ void main() {
     ];
 
     setUp(() {
-      platformMock.sendRequestOutput = null;
-      platformMock.requestInput = {
-        'id': requestId,
-        'uri': uri,
-        'method': method,
-        'headers': requestHeaders,
-        'timeout': connectionTimeout.inMilliseconds,
-        'network': network.name.toUpperCase(),
-        'outputPath': outputFile,
-      };
+      platformMock.requestInputs = [
+        {
+          'id': requestId,
+          'uri': uri,
+          'method': method,
+          'headers': requestHeaders,
+          'timeout': connectionTimeout.inMilliseconds,
+          'network': network.name.toUpperCase(),
+          'outputPath': outputFile,
+        },
+      ];
     });
     test("TimeoutCancellationException while fetching", () async {
       Stream<Map<String, dynamic>> mockStream() async* {
@@ -382,6 +583,44 @@ void main() {
       );
       expect(exception, isA<FormatException>());
     });
+    test("IOException (platform unhandled) while fetching", () async {
+      Stream<Map<String, dynamic>> mockStream() async* {
+        for (final e in events) {
+          yield e;
+        }
+        throw PlatformException(code: "IOException");
+      }
+
+      platformMock.callbackStreamOutput = mockStream();
+
+      final response = await client.get(
+        outputFile: File(outputFile),
+        uri: uri,
+        headers: requestHeaders,
+        connectionTimeout: connectionTimeout,
+        network: network,
+      );
+      expect(response.statusCode, equals(statusCode));
+      expect(response.contentLength, equals(contentLength));
+
+      final progressSteps = <ProgressStep>[];
+      Object? exception;
+      try {
+        await for (final newProgress in response.progressStream) {
+          progressSteps.add(newProgress);
+        }
+      } catch (e) {
+        exception = e;
+      }
+
+      expect(
+        DeepCollectionEquality().equals(progressSteps, [
+          ProgressStep(downloaded: 30, contentLength: 120),
+        ]),
+        isTrue,
+      );
+      expect(exception, isA<FileSystemException>());
+    });
     test("Unknown Exception while fetching", () async {
       Stream<Map<String, dynamic>> mockStream() async* {
         for (final e in events) {
@@ -480,6 +719,52 @@ void main() {
         exception = e;
       }
       expect(exception, isA<FormatException>());
+    });
+    test("Not handled exception before getting status message", () async {
+      Stream<Map<String, dynamic>> mockStream() async* {
+        throw Exception("message");
+      }
+
+      platformMock.callbackStreamOutput = mockStream();
+
+      Object? exception;
+      try {
+        await client.get(
+          outputFile: File(outputFile),
+          uri: uri,
+          headers: requestHeaders,
+          connectionTimeout: connectionTimeout,
+          network: network,
+        );
+      } catch (e) {
+        exception = e;
+      }
+      expect(exception, isA<Exception>());
+    });
+    test("Not handled exception before getting status message", () async {
+      Stream<Map<String, dynamic>> mockStream() async* {
+        throw "Unknown stuff";
+      }
+
+      platformMock.callbackStreamOutput = mockStream();
+
+      Object? exception;
+      try {
+        await client.get(
+          outputFile: File(outputFile),
+          uri: uri,
+          headers: requestHeaders,
+          connectionTimeout: connectionTimeout,
+          network: network,
+        );
+      } catch (e) {
+        exception = e;
+      }
+      expect(exception, isA<Exception>());
+      expect(
+        exception.toString(),
+        equals("Exception: Platform error: unknown error"),
+      );
     });
   });
   group("GET/ POST  request", () {

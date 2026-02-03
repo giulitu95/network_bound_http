@@ -90,6 +90,52 @@ class NetworkBoundClient {
   }
 
   @visibleForTesting
+  Exception? handlePlatformError(
+    final dynamic error,
+    final dynamic stack,
+    final String requestId,
+    final Duration connectionTimeout,
+  ) {
+    if (error is PlatformException) {
+      // If the platform exception is handled by the native code,
+      // the error code is composed by <requestId>::<ExceptionType>
+      final splitError = error.code.split("::");
+      if (splitError.length > 1) {
+        if (splitError[0] == requestId) {
+          // We try to convert a native exception to a flutter exception
+          return _nativeToFlutterException(
+            splitError[1],
+            error.message,
+            connectionTimeout,
+          );
+        } else {
+          // The exception does not refer to this request. It is ignored
+          return null;
+        }
+      } else {
+        // Thi is the case in which a platform unhandled error is thrown, hence
+        // the error does not contain the request id.
+        // If this does happen, it could be a problem because other listeners
+        // of other requests that are open at the same time, all receive the same
+        // error, regardless of the request id
+        return _nativeToFlutterException(
+          error.code,
+          error.message,
+          connectionTimeout,
+        );
+      }
+    } else {
+      // This is the case in which an Unhandled error is thrown.
+      // If this does happen, it could be a problem because other listeners
+      // of other requests that are open at the same time, all receive the same
+      // error, regardless of the request id
+      return error is Exception
+          ? error
+          : Exception("Platform error: unknown error");
+    }
+  }
+
+  @visibleForTesting
   Future<NetworkBoundResponse> fetchToFile({
     required File outputFile,
     required String uri,
@@ -115,14 +161,20 @@ class NetworkBoundClient {
               progressController.add(
                 ProgressStep(
                   downloaded: downloadedBytes,
+                  // Sometimes contentLength is not specified (in this case, it
+                  // is equal to -1
                   contentLength: contentLength == -1 ? null : contentLength,
                 ),
               );
             } else if (e["type"] == "done") {
+              // In this case we close the streamController the user is
+              // listening to and we close the platform-events subscription
               progressController.close();
               subscription.cancel();
             } else if (e["type"] == "status") {
               if (!completer.isCompleted) {
+                // As soon as a status event arrives, we return from the
+                // fetchToFile function
                 completer.complete(
                   NetworkBoundResponse(
                     statusCode: e["statusCode"],
@@ -133,30 +185,24 @@ class NetworkBoundClient {
               }
             }
           },
-          onError: (error, stack) {
-            late Exception exception;
-            if (error is PlatformException) {
-              final splitError = error.code.split("::");
-              if (splitError[0] == id) {
-                exception = _nativeToFlutterException(
-                  splitError[1],
-                  error.message,
-                  connectionTimeout,
-                );
+          onError: (error, stack) async {
+            final exception = handlePlatformError(
+              error,
+              stack,
+              id,
+              connectionTimeout,
+            );
+            if (exception != null) {
+              if (!completer.isCompleted) {
+                completer.completeError(exception, stack);
+              } else if (!progressController.isClosed) {
+                progressController.addError(exception, stack);
+                progressController.close();
               }
+              subscription.cancel();
             } else {
-              // If this does happen it could be problem because other listeners
-              // of other requests that are open at the same time, all receive
-              // and must handle the error
-              exception = error;
+              // do nothing, the error does not refer to this request
             }
-            if (!completer.isCompleted) {
-              completer.completeError(exception, stack);
-            } else if (!progressController.isClosed) {
-              progressController.addError(exception, stack);
-              progressController.close();
-            }
-            subscription.cancel();
           },
           onDone: () {
             // It should never reach here since the callback stream is an infinite

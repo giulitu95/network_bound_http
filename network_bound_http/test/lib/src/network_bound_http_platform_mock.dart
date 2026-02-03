@@ -7,8 +7,8 @@ class NetworkBoundHttpPlatformMock extends Fake
   Stream<Map<String, dynamic>>? callbackStreamOutput;
   bool isCallbackStreamCalled = false;
 
-  Map<String, dynamic>? requestInput;
-  String? sendRequestOutput;
+  List<Map<String, dynamic>> requestInputs = [];
+  int sendRequestCallCounter = 0;
 
   @override
   Stream<Map<String, dynamic>> get callbackStream {
@@ -19,8 +19,14 @@ class NetworkBoundHttpPlatformMock extends Fake
 
   @override
   Future<String?> sendRequest({required Map<String, dynamic> request}) async {
-    assert(requestInput != null);
-    expect(const DeepCollectionEquality.unordered().equals(request, requestInput), isTrue);
-    return sendRequestOutput;
+    expect(
+      const DeepCollectionEquality.unordered().equals(
+        request,
+        requestInputs[sendRequestCallCounter],
+      ),
+      isTrue,
+    );
+    sendRequestCallCounter ++;
+    return null;
   }
 }
