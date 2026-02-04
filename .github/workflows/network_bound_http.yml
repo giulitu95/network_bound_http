@@ -4,7 +4,7 @@ on:
   push:
 
 jobs:
-  flutter-format:                  
+  network-bound-http-flutter-format:                  
     runs-on: ubuntu-latest  
 
     steps:
@@ -24,7 +24,7 @@ jobs:
       - run: dart format --set-exit-if-changed -o none lib test
         working-directory: network_bound_http
 
-  flutter-analyze:                  
+  network-bound-http-flutter-analyze:                  
     runs-on: ubuntu-latest  
 
     steps:
@@ -44,7 +44,7 @@ jobs:
       - run: flutter analyze
         working-directory: network_bound_http
 
-  flutter-test:                  
+  network-bound-http-flutter-test:                  
     runs-on: ubuntu-latest  
 
     steps:
@@ -73,3 +73,83 @@ jobs:
           files: network_bound_http/coverage/lcov.info
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  network-bound-http-android-flutter-format:                  
+    runs-on: ubuntu-latest  
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+            channel: stable
+            cache: true
+
+      - run: flutter clean
+        working-directory: network_bound_http_android
+
+      - run: flutter pub get
+        working-directory: network_bound_http_android
+          
+      - run: dart format --set-exit-if-changed -o none lib test
+        working-directory: network_bound_http_android
+
+  network-bound-http-android-flutter-analyze:                  
+    runs-on: ubuntu-latest  
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+        
+      - run: flutter clean
+        working-directory: network_bound_http_android
+      
+      - run: flutter pub get
+        working-directory: network_bound_http_android
+
+      - run: flutter analyze
+        working-directory: network_bound_http_android
+
+  network-bound-http-platform-interface-flutter-format:                  
+    runs-on: ubuntu-latest  
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+            channel: stable
+            cache: true
+
+      - run: flutter clean
+        working-directory: network_bound_http_platform_interface
+
+      - run: flutter pub get
+        working-directory: network_bound_http_platform_interface
+          
+      - run: dart format --set-exit-if-changed -o none lib test
+        working-directory: network_bound_http_platform_interface
+
+  network-bound-http-platform-interface-flutter-analyze:                  
+    runs-on: ubuntu-latest  
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+        
+      - run: flutter clean
+        working-directory: network_bound_http_platform_interface
+      
+      - run: flutter pub get
+        working-directory: network_bound_http_platform_interface
+
+      - run: flutter analyze
+        working-directory: network_bound_http_platform_interface
