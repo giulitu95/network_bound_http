@@ -1,5 +1,8 @@
 # Network Bound HTTP
 [![codecov](https://codecov.io/github/giulitu95/network_bound_http/graph/badge.svg?token=10A84VB9V1)](https://codecov.io/github/giulitu95/network_bound_http)
+[![CI](https://github.com/giulitu95/network_bound_http/actions/workflows/network_bound_http.yml/badge.svg)](https://github.com/giulitu95/network_bound_http/actions/workflows/network_bound_http.yml)
+[![Pub Version](https://img.shields.io/pub/v/network_bound_http.svg)](https://pub.dev/packages/network_bound_http)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 `network_bound_http` is a federated Flutter plugin that allows performing HTTP **GET** and **POST** requests using a specific network interface, such as Wi-Fi, cellular, or the default network.
 
