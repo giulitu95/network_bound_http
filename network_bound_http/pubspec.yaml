@@ -3,7 +3,6 @@ description: A Flutter/Dart library for network requests with selectable network
 version: 0.1.0
 homepage: https://github.com/giulitu95/network_bound_http/tree/v0.1.0/network_bound_http
 license: MIT
-publish_to: "https://pub.dev"
 
 environment:
   sdk: ^3.10.7
@@ -13,10 +12,8 @@ dependencies:
   flutter:
     sdk: flutter
   plugin_platform_interface: ^2.0.2
-  network_bound_http_platform_interface:
-    path: ../network_bound_http_platform_interface
-  network_bound_http_android:
-    path: ../network_bound_http_android
+  network_bound_http_platform_interface: ^0.1.0
+  network_bound_http_android: ^0.1.0
   uuid: ^4.5.2
   path_provider: ^2.1.5
   path: ^1.9.1
