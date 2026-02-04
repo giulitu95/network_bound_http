@@ -33,7 +33,7 @@ import 'package:network_bound_http/network_bound_http.dart';
 ```
 
 ## Usage
-### 1. Downloading directly to a file
+### 1. Downloading directly to a filegit add 
 
 ```dart
 import 'dart:io';
@@ -87,16 +87,9 @@ try {
 ```
 
 
-Notes
+## Notes
+- If the **selected network is not available** (for example, requesting cellular network while cellular data is turned off by the OS), the request will wait for a defined interval (connectionTimeout) and then throw a `TimeoutException`.
 
-On Android, if the selected network cannot access the internet, the request may fail with a SocketException.
+- If the request is sent to a **network that is active but cannot reach the internet** (for example, a Wi-Fi network without internet access), a `SocketException` will be thrown.
 
-iOS and Windows automatically switch to an available network with internet access if Wi-Fi has no connectivity.
-
-The progress stream is only available when downloading to a file.
-
-Example Use Cases
-
-Downloading a large file using cellular while staying connected to a local Wi-Fi network for device-to-device communication.
-
-Custom routing requests through a preferred network for analytics, enterprise apps, or IoT devices.
+- The **progress stream** is only available when downloading to a file.
