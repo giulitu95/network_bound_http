@@ -1,10 +1,9 @@
 name: network_bound_http_platform_interface
-description: A common platform interface for the network_bound_http plugin.
-# NOTE: We strongly prefer non-breaking changes, even at the expense of a
-# less-clean API. See https://flutter.dev/go/platform-interface-breaking-changes
-version: 1.0.0
-homepage:
-publish_to: none
+description: Defines the shared platform interface for network_bound_http.
+homepage: https://github.com/giulitu95/network_bound_http/tree/v0.1.0/network_bound_http_platform_interface
+version: 0.1.0
+licence: MIT
+publish_to: "https://pub.dev"
 
 environment:
   sdk: ">=3.0.0 <4.0.0"

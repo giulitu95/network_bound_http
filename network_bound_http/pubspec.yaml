@@ -1,7 +1,9 @@
 name: network_bound_http
-description: "A new Flutter plugin project."
-version: 0.0.1
-homepage:
+description: A Flutter/Dart library for network requests with selectable network type (Wi-Fi, cellular, or standard).
+version: 0.1.0
+homepage: https://github.com/giulitu95/network_bound_http/tree/v0.1.0/network_bound_http
+license: MIT
+publish_to: "https://pub.dev"
 
 environment:
   sdk: ^3.10.7
