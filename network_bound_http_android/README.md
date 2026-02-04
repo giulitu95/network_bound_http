@@ -1,3 +1,11 @@
-# network_bound_http_android
+# Network Bound HTTP Android
 
-[![codecov](https://codecov.io/github/giulitu95/network_bound_http/graph/badge.svg?token=10A84VB9V1)](https://codecov.io/github/giulitu95/network_bound_http)
+This package implements the Android-specific functionality for the
+`network_bound_http` federated plugin.
+
+It handles HTTP requests using a specific network interface (Wi-Fi, cellular, or default)
+and provides direct download to file with progress tracking.
+
+⚠️ Android only.
+
+---
