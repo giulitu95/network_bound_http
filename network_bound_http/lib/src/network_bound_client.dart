@@ -11,16 +11,40 @@ import 'package:uuid/uuid.dart';
 
 enum NetworkType { standard, wifi, cellular }
 
+/// Represents a single progress update emitted during a streaming download.
+///
+/// This class describes the current state of a download in terms of:
+/// - [downloaded]: the total number of bytes received so far.
+/// - [contentLength]: the total expected size of the response, if known.
+///
+/// Instances of this class are emitted by the `progressStream` of
+/// [NetworkBoundStreamResponse].
 class ProgressStep extends Equatable {
+  /// Total number of bytes downloaded so far.
   final int downloaded;
+
+  /// Total expected response size in bytes, if known.
+  ///
+  /// This value may be `null` if the server does not provide a
+  /// `Content-Length` header.
   final int? contentLength;
 
+  @visibleForTesting
   const ProgressStep({required this.downloaded, required this.contentLength});
 
   @override
   List<Object?> get props => [downloaded, contentLength];
 }
 
+/// Core client for performing network requests within the library.
+///
+/// Provides the primary interface for executing HTTP requests with
+/// selectable network types ([NetworkType.wifi], [NetworkType.cellular], or [NetworkType.standard])
+/// and returning either fully buffered responses ([NetworkBoundCompleteResponse])
+/// or streaming downloads ([NetworkBoundStreamResponse]).
+///
+/// All request-specific parameters (URI, headers, timeout, etc.) are passed
+/// directly to the request methods.
 class NetworkBoundClient {
   @visibleForTesting
   static const defaultConnectionTimeout = Duration(seconds: 4);
@@ -34,6 +58,68 @@ class NetworkBoundClient {
   @visibleForTesting
   Uuid uuid = const Uuid();
 
+  /// Performs an HTTP **GET** request and streams the response directly into a file,
+  /// allowing the caller to specify the network interface and monitor download progress.
+  ///
+  /// The function **returns immediately as soon as the connection is established**,
+  /// without waiting for the download to complete. The download progress can be tracked
+  /// by listening to the `progressStream` contained in the returned
+  /// [NetworkBoundStreamResponse].
+  ///
+  /// ## Behavior
+  /// - Sends an HTTP **GET** request to the provided [uri].
+  /// - The request is executed using the selected [network] interface.
+  /// - The response body is written directly into [outputFile].
+  /// - Progress updates are emitted through `progressStream`.
+  /// - When the stream completes, the download is finished.
+  /// - If an error occurs, the stream emits an error event.
+  ///
+  /// ## Parameters
+  /// - [outputFile]: Destination file where the downloaded data will be written.
+  /// - [uri]: The target URI for the GET request.
+  /// - [headers]: Optional HTTP headers.
+  /// - [connectionTimeout]: Maximum duration to wait before the connection attempt
+  ///   times out and throws an exception.
+  /// - [network]: Network interface to use for the request:
+  ///   - [NetworkType.wifi]
+  ///   - [NetworkType.cellular]
+  ///   - [NetworkType.standard]
+  ///
+  /// ## Returns
+  /// Returns a [NetworkBoundStreamResponse] which contains:
+  /// - `progressStream`: A stream of progress events that can be listened to in order
+  ///   to track the download state. When the stream completes, the download is finished.
+  /// - other info related to the http connection
+  ///
+  /// ## Example
+  /// ```dart
+  /// final response = await getToFile(
+  ///   outputFile: file,
+  ///   uri: 'https://example.com/large-file.zip',
+  ///   network: NetworkType.cellular,
+  /// );
+  ///
+  /// response.progressStream.listen(
+  ///   (event) {
+  ///     print('Downloaded: ${event.downloaded} / ${event.contentLength}');
+  ///   },
+  ///   onDone: () {
+  ///     print('Download completed');
+  ///   },
+  ///   onError: (e) {
+  ///     print('Download failed: $e');
+  ///   },
+  /// );
+  /// ```
+  ///
+  /// ## Notes
+  /// - This method does **not block** until the download completes.
+  /// - Make sure to listen to the stream to properly handle completion and errors.
+  /// - The caller is responsible for managing the lifecycle of the output file.
+  ///
+  /// ## Throws
+  /// - [TimeoutException] if the connection is not established within [connectionTimeout].
+  /// - [Exception] for network, I/O, or protocol errors.
   Future<NetworkBoundStreamResponse> getToFile({
     required File outputFile,
     required String uri,
@@ -49,6 +135,58 @@ class NetworkBoundClient {
     network: network,
   );
 
+  /// Performs an HTTP **GET** request and returns the fully buffered response.
+  ///
+  /// This method behaves similarly to [getToFile], but instead of streaming the
+  /// response into a file, it **buffers the entire response body in memory** and
+  /// returns it directly inside a [NetworkBoundCompleteResponse].
+  ///
+  /// The function **completes only when the full response has been received**.
+  /// For large payloads, consider using [getToFile] to avoid excessive memory usage.
+  ///
+  /// ## Behavior
+  /// - Sends an HTTP **GET** request to the provided [uri].
+  /// - The request is executed using the selected [network] interface.
+  /// - The response body is fully downloaded and buffered in memory.
+  /// - The method completes only after the full payload has been received.
+  /// - If an error occurs, the returned future completes with an exception.
+  ///
+  /// ## Parameters
+  /// - [uri]: The target URI for the GET request.
+  /// - [headers]: Optional HTTP headers.
+  /// - [connectionTimeout]: Maximum duration to wait before the connection attempt
+  ///   times out and throws an exception.
+  /// - [network]: Network interface to use for the request:
+  ///   - [NetworkType.wifi]
+  ///   - [NetworkType.cellular]
+  ///   - [NetworkType.standard]
+  ///
+  /// ## Returns
+  /// Returns a [NetworkBoundCompleteResponse] containing:
+  /// - The full response body as a [Uint8List].
+  /// - HTTP status information.
+  /// - Response headers and metadata.
+  ///
+  /// ## Example
+  /// ```dart
+  /// final response = await get(
+  ///   uri: 'https://api.example.com/data',
+  ///   network: NetworkType.wifi,
+  /// );
+  ///
+  /// print('Status: ${response.statusCode}');
+  /// print('Body bytes: ${response.body.length}');
+  /// ```
+  ///
+  /// ## Notes
+  /// - This method **buffers the entire response in memory**.
+  /// - For large responses, prefer [getToFile] to reduce memory pressure.
+  /// - If you need progress reporting, use [getToFile].
+  ///
+  /// ## Throws
+  /// - [TimeoutException] if the connection is not established within
+  ///   [connectionTimeout].
+  /// - [Exception] for network, protocol, or I/O errors.
   Future<NetworkBoundCompleteResponse> get({
     required String uri,
     Map<String, dynamic>? headers,
@@ -62,6 +200,16 @@ class NetworkBoundClient {
     network: network,
   );
 
+  /// Performs an HTTP **POST** request and streams the response directly into a file.
+  ///
+  /// This method behaves exactly like [getToFile], but uses the HTTP **POST** method
+  /// instead of **GET**.
+  ///
+  /// See [getToFile] for detailed behavior, progress handling, and error semantics.
+  ///
+  /// ## Additional Parameters
+  /// - [body]: The request payload to send with the POST request.
+  /// - [encoding]: Encoding used for the request body.
   Future<NetworkBoundStreamResponse> postToFile({
     required File outputFile,
     required String uri,
@@ -79,6 +227,32 @@ class NetworkBoundClient {
     network: network,
   );
 
+  /// Performs an HTTP **POST** request and returns the fully buffered response.
+  ///
+  /// This method behaves exactly like [get], but uses the HTTP **POST** method
+  /// instead of **GET**, allowing a request payload to be sent.
+  ///
+  /// See [get] for detailed behavior, response handling, memory usage, and
+  /// error semantics.
+  ///
+  /// ## Additional Parameters
+  /// - [body]: The request payload to send with the POST request.
+  /// - [encoding]: Encoding used to serialize the request body.
+  ///
+  /// ## Example
+  /// ```dart
+  /// final response = await post(
+  ///   uri: 'https://api.example.com/login',
+  ///   body: {'username': 'user', 'password': 'pass'},
+  /// );
+  ///
+  /// print('Status: ${response.statusCode}');
+  /// print('Body bytes: ${response.body.length}');
+  /// ```
+  ///
+  /// ## See also
+  /// - [get] for buffered GET requests.
+  /// - [postToFile] for streaming POST downloads into a file.
   Future<NetworkBoundCompleteResponse> post({
     required String uri,
     Map<String, dynamic>? headers,
@@ -192,6 +366,7 @@ class NetworkBoundClient {
         return NetworkBoundCompleteResponse(
           statusCode: res.statusCode,
           contentLength: res.contentLength,
+          headers: res.headers,
           body: output,
         );
       } catch (e, _) {
@@ -248,6 +423,7 @@ class NetworkBoundClient {
                   NetworkBoundStreamResponse(
                     statusCode: e["statusCode"],
                     contentLength: e["contentLength"],
+                    headers: e["headers"],
                     progressStream: progressController.stream,
                   ),
                 );
@@ -298,30 +474,60 @@ class NetworkBoundClient {
   }
 }
 
+/// Represents a streaming HTTP response.
+///
+/// Contains a [progressStream] that emits [ProgressStep] events
+/// to track download progress in real time.
+/// Used as the return type of streaming requests (`getToFile`, `postToFile`).
 class NetworkBoundStreamResponse extends NetworkBoundResponse {
+  /// Stream of progress updates during the download.
   final Stream<ProgressStep> progressStream;
+
   NetworkBoundStreamResponse({
     required super.statusCode,
-    required super.contentLength,
+    super.contentLength,
+    super.headers,
     required this.progressStream,
   });
 }
 
+/// Represents a fully buffered HTTP response.
+///
+/// Contains the complete response [body] as a [Uint8List].
+/// Used as the return type of buffered requests (`get`, `post`).
 class NetworkBoundCompleteResponse extends NetworkBoundResponse {
+  /// Response body as a [Uint8List].
   final Uint8List body;
 
   NetworkBoundCompleteResponse({
     required super.statusCode,
-    required super.contentLength,
+    super.contentLength,
+    super.headers,
     required this.body,
   });
 }
 
-class NetworkBoundResponse {
+/// Represents a generic HTTP response.
+///
+/// Contains common metadata returned by any network request:
+/// - [statusCode]: the HTTP status code of the response.
+/// - [contentLength]: the total size of the response in bytes, if known.
+/// - [headers]: optional HTTP response headers.
+abstract class NetworkBoundResponse {
+  /// HTTP status code of the response.
   final int statusCode;
 
-  // contentLength could be not defined
+  /// Total expected response size in bytes, if known.
+  ///
+  /// May be `null` if the server does not provide a `Content-Length` header.
   final int? contentLength;
 
-  NetworkBoundResponse({required this.statusCode, required this.contentLength});
+  /// HTTP response headers, if available.
+  final Map<dynamic, dynamic>? headers;
+
+  NetworkBoundResponse({
+    required this.statusCode,
+    this.contentLength,
+    this.headers,
+  });
 }
